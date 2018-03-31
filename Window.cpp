@@ -4,7 +4,8 @@
 
 #include "Window.h"
 
-bool Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow, LONG style) {
+bool
+WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow, LONG style) {
     auto hwnd = CreateWindowW(windowClass,
                               title,
                               style,
