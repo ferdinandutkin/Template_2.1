@@ -55,11 +55,11 @@ LRESULT WinApi::MessageMapBase::ProcessMessage(HWND hWnd, UINT message, WPARAM w
     return GetDefaultValue(hWnd, message, wParam, lParam);
 }
 
-LRESULT WinApi::WindowMessageMap::GetProcessedValue() {
+LRESULT WinApi::MessageMap::GetProcessedValue() {
     return 0;
 }
 
-LRESULT WinApi::WindowMessageMap::GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT WinApi::MessageMap::GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 

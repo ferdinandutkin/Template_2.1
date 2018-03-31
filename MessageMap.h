@@ -9,7 +9,6 @@
 #include <Windows.h>
 
 namespace WinApi {
-
     class CommandMap final {
         std::map<int, void (*)(HWND, WORD, WORD, LPARAM)> _commandMap;
 
@@ -40,12 +39,14 @@ namespace WinApi {
         virtual LRESULT GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) = 0;
     };
 
-    class WindowMessageMap final : public MessageMapBase {
+
+    class MessageMap final : public MessageMapBase {
     protected:
         LRESULT GetProcessedValue() override;
 
         LRESULT GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) override;
     };
+
 
     class DialogMessageMap final : public MessageMapBase {
     protected:
@@ -54,8 +55,6 @@ namespace WinApi {
         LRESULT GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) override;
     };
 }
-
-
 
 
 #endif //UNTITLED7_COMMANDMAP_H
