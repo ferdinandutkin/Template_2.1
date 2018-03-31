@@ -7,6 +7,7 @@
 
 namespace consts {
     LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
+    LPCTSTR title = L"Main Window";
 }
 class Program {
     static WinApi::MessageMap message_map;
@@ -39,7 +40,7 @@ public:
         init_message_map();
 
         WinApi::WindowClass(hinst, consts::main_class_name, wnd_proc).Register();
-        WinApi::Window().create_and_show(hinst, consts::main_class_name, L"Main Window", nCmdShow);
+        WinApi::Window().create_and_show(hinst, consts::main_class_name, consts::title, nCmdShow);
         return main_loop();
     }
 
