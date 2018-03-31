@@ -5,8 +5,8 @@
 #include "Window.h"
 
 bool
-WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow, DWORD style) {
-    auto hwnd = CreateWindowW(windowClass,
+WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR window_class, LPCWSTR title, int nCmdShow, DWORD style) {
+    auto hwnd = CreateWindowW(window_class,
                               title,
                               style,
                               CW_USEDEFAULT, 0,
@@ -15,7 +15,7 @@ WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWST
                               nullptr,
                               hInstance,
                               nullptr);
-
+//std::wcout<<title<<' '<<window_class;
     if (!hwnd)
         return false;
 

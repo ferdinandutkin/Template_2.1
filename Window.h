@@ -10,7 +10,7 @@
 namespace WinApi {
     class Window {
     public:
-        bool create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow,
+        bool create_and_show(HINSTANCE hInstance, LPCWSTR window_class, LPCWSTR title, int nCmdShow,
                              DWORD style = WS_OVERLAPPEDWINDOW);
     };
 }

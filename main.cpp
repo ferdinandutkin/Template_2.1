@@ -13,7 +13,7 @@ class Program {
     static HINSTANCE hinst;
 
     static void init_message_map() {
-        message_map.AddHandler(WM_PAINT, on_paint);
+        message_map.AddHandler(WM_PAINT, on_paint).AddHandler(WM_DESTROY, on_destroy);
     }
 
     static void DeleteGdiObjects() {
@@ -37,13 +37,20 @@ public:
     static int main(HINSTANCE hInstance, int nCmdShow) {
         hinst = hInstance;
         init_message_map();
+
         WinApi::WindowClass(hinst, consts::main_class_name, wnd_proc).Register();
         WinApi::Window().create_and_show(hinst, consts::main_class_name, L"Main Window", nCmdShow);
         return main_loop();
     }
 
+
     static LRESULT on_paint(HWND hwnd, WPARAM wparam, LPARAM lparam) {
     }
+
+    static void on_destroy(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        PostQuitMessage(0);
+    }
+
 
     static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
         return message_map.ProcessMessage(hwnd, message, wParam, lParam);
