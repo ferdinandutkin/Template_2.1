@@ -11,7 +11,7 @@ namespace WinApi {
     class Window {
     public:
         bool create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow,
-                             LONG style = WS_OVERLAPPEDWINDOW);
+                             DWORD style = WS_OVERLAPPEDWINDOW);
     };
 }
 

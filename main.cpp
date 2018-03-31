@@ -3,7 +3,11 @@
 #include <windows.h>
 #include "MessageMap.h"
 #include "WindowClass.h"
+#include "Window.h"
 
+namespace consts {
+    LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
+}
 class Program {
     static WinApi::MessageMap message_map;
     static HINSTANCE hinst;
@@ -28,11 +32,13 @@ class Program {
 
         return (int) message.wParam;
     }
+
 public:
     static int main(HINSTANCE hInstance, int nCmdShow) {
         hinst = hInstance;
         init_message_map();
-        WinApi::WindowClass(hinst, L"ahaha", wnd_proc).Register();
+        WinApi::WindowClass(hinst, consts::main_class_name, wnd_proc).Register();
+        WinApi::Window().create_and_show(hinst, consts::main_class_name, L"Main Window", nCmdShow);
         return main_loop();
     }
 

@@ -5,7 +5,7 @@
 #include "Window.h"
 
 bool
-WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow, LONG style) {
+WinApi::Window::create_and_show(HINSTANCE hInstance, LPCWSTR windowClass, LPCWSTR title, int nCmdShow, DWORD style) {
     auto hwnd = CreateWindowW(windowClass,
                               title,
                               style,
