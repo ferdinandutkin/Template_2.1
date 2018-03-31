@@ -2,6 +2,8 @@
 
 #include <windows.h>
 #include <iostream>
+#include <ctime>
+#include <sstream>
 #include "MessageMap.h"
 #include "WindowClass.h"
 #include "Window.h"
@@ -10,16 +12,19 @@ namespace consts {
     LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
     LPCTSTR title = L"Main Window";
     const char flags[] = {2, 3, 4, 1};//2 and 4 for 2 state
+    const time_t time_between_signals = 5000;
 }
 
 namespace Timers {
     unsigned int timer1 = 12345;
+    unsigned int timer2 = 12346;
 }
 
 class Program {
     static WinApi::MessageMap message_map;
     static HINSTANCE hinst;
     static char flag;
+    static clock_t start_time, cur_time;
 
     static void init_message_map() {
         message_map.AddHandler(WM_PAINT, on_paint)
@@ -104,6 +109,20 @@ class Program {
         ReleaseOldObj(hdc, brush);
         Ellipse(hdc, (w / 2 - r), (3 * h / 2 - r) / 2, (w / 2 + r), (3 * h / 2 + 3 * r) / 2);
         ReleaseOldObj(hdc, old_brush);
+
+        clock_t seconds_remain = consts::time_between_signals / 1000 - (cur_time - start_time) / CLOCKS_PER_SEC;
+        if (seconds_remain <= 0)
+            seconds_remain = 1;
+        std::wstringstream ss;
+        std::wstring str;
+        ss << seconds_remain;
+        ss >> str;
+        auto font = CreateFont(170, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Arial");
+        auto old_font = SelectObject(hdc, font);
+        SetBkMode(hdc, TRANSPARENT);
+        DrawText(hdc, str.c_str(), -1, &rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+        SetBkMode(hdc, OPAQUE);
+        ReleaseOldObj(hdc, old_font);
     }
 
 public:
@@ -122,32 +141,48 @@ public:
         PAINTSTRUCT ps;
         auto rect = GetClientRect(hwnd);
         BeginPaint(hwnd, &ps);
+
         auto cur_hdc = CreateCompatibleDC(ps.hdc);
         auto old_bitmap = SelectBufferBitmap(ps.hdc, cur_hdc, rect);
+
         print_traficlight(cur_hdc, rect);
+
         CopyContextBits(ps.hdc, cur_hdc, rect);
         ReleaseOldObj(cur_hdc, old_bitmap);
+
         EndPaint(hwnd, &ps);
         return 0;
     }
 
 
     static void on_create(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        SetTimer(hwnd, Timers::timer1, 1000, nullptr);
+        SetTimer(hwnd, Timers::timer1, consts::time_between_signals, nullptr);
+        SetTimer(hwnd, Timers::timer2, 100, TimerProc);
+        start_time = clock();
     }
 
+    static void CALLBACK TimerProc(HWND hWindow, UINT message, UINT_PTR idEvent, DWORD time) {
+        if (idEvent != Timers::timer2) return;
+
+        cur_time = clock();
+        auto rect = GetClientRect(hWindow);
+        InvalidateRect(hWindow, &rect, 0);
+    }
 
     static void on_timer(HWND hwnd, WPARAM wparam, LPARAM lparam) {
         if (LOWORD(wparam) == Timers::timer1) {
             flag = consts::flags[flag - 1];
             auto rect = GetClientRect(hwnd);
+            start_time = cur_time;
             InvalidateRect(hwnd, &rect, 0);
         }
-        std::cout << (int) flag;
     }
 
 
     static void on_destroy(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        KillTimer(hwnd, Timers::timer1);
+        KillTimer(hwnd, Timers::timer2);
+
         PostQuitMessage(0);
     }
 
@@ -164,6 +199,7 @@ public:
 WinApi::MessageMap Program::message_map;
 HINSTANCE Program::hinst;
 char Program::flag = 1;
+clock_t Program::start_time, Program::cur_time;
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 
