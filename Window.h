@@ -6,11 +6,11 @@
 #define UNTITLED7_WINDOW_H
 
 #include <windows.h>
-
+#include <string>
 namespace WinApi {
     class Window {
     public:
-        bool create_and_show(HINSTANCE hInstance, LPCWSTR window_class, LPCWSTR title, int nCmdShow,
+        bool create_and_show(HINSTANCE hInstance, std::wstring window_class, std::wstring title, int nCmdShow,
                              DWORD style = WS_OVERLAPPEDWINDOW);
     };
 }

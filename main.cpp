@@ -9,6 +9,7 @@ namespace consts {
     LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
     LPCTSTR title = L"Main Window";
 }
+
 class Program {
     static WinApi::MessageMap message_map;
     static HINSTANCE hinst;
@@ -46,6 +47,7 @@ public:
 
 
     static LRESULT on_paint(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        return 0;
     }
 
     static void on_destroy(HWND hwnd, WPARAM wparam, LPARAM lparam) {
