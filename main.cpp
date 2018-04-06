@@ -21,8 +21,8 @@ namespace consts {
                        {WS_CHILD | WS_BORDER, 0, 1, 1, 50, 50, 1234}, 0xFFFF, 0x0083, L"Test", 0
     };
     const std::vector<std::wstring> operations[] = {{L"+", L"-", L"*", L"/", L"%"},
-                                                    {L"&", L"|", L"^",},
-                                                    {L"&", L"|", L"^", L"⇒", L"⇔"}};//L"&", L"˅", L"⊕"
+                                                    {L"&", L"|", L"^",},//L"&", L"˅", L"⊕"
+                                                    {L"∧", L"˅", L"⊕", L"⇒", L"⇔"}};
     const std::wstring operation_names[] = {L"Арифметические", L"Битовые", L"Логические"};
     const int number_of_operations = 3;
 }
