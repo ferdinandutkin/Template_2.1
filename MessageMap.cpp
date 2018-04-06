@@ -2,17 +2,19 @@
 // Created by serko on 19.03.2018.
 //
 
+#include <vector>
+#include <iostream>
 #include "MessageMap.h"
 
-void WinApi::CommandMap::AddHandler(int command, void (*handler)(HWND, WORD, WORD, LPARAM)) {
-    _commandMap.insert(std::make_pair(command, handler));
+void WinApi::CommandMap::AddHandler(int id, void (*handler)(HWND, WORD, WORD, LPARAM), int command) {
+    _commandMap.insert(std::make_pair(std::make_pair(id, command), handler));
 }
 
 bool WinApi::CommandMap::ProcessCommand(HWND hWindow, WPARAM wParam, LPARAM lParam) {
     auto loWord = LOWORD(wParam);
-    auto iterator = _commandMap.find(loWord);
+    auto hiWord = HIWORD(wParam);
+    auto iterator = _commandMap.find(std::make_pair(loWord, hiWord));
     if (iterator != _commandMap.end()) {
-        auto hiWord = HIWORD(wParam);
         iterator->second(hWindow, loWord, hiWord, lParam);
         return true;
     }
@@ -31,8 +33,8 @@ WinApi::MessageMapBase &WinApi::MessageMapBase::AddHandler(UINT message, LRESULT
 }
 
 WinApi::MessageMapBase &
-WinApi::MessageMapBase::AddCommandHandler(int command, void (*handler)(HWND, WORD, WORD, LPARAM)) {
-    _commandMap.AddHandler(command, handler);
+WinApi::MessageMapBase::AddCommandHandler(int id, int command, void (*handler)(HWND, WORD, WORD, LPARAM)) {
+    _commandMap.AddHandler(id, handler, command);
     return *this;
 }
 
@@ -55,6 +57,16 @@ LRESULT WinApi::MessageMapBase::ProcessMessage(HWND hWnd, UINT message, WPARAM w
     return GetDefaultValue(hWnd, message, wParam, lParam);
 }
 
+WinApi::MessageMapBase &
+WinApi::MessageMapBase::AddCommandHandlersSet(const std::vector<std::pair<int, bool> > &ids, int command,
+                                              void (*handler)(HWND, WORD, WORD, LPARAM)) {
+    for (auto i:ids) {
+        std::cout << 1;
+        AddCommandHandler(i.first, command, handler);
+    }
+    return *this;
+}
+
 LRESULT WinApi::MessageMap::GetProcessedValue() {
     return 0;
 }
@@ -68,5 +80,6 @@ LRESULT WinApi::DialogMessageMap::GetProcessedValue() {
 }
 
 LRESULT WinApi::DialogMessageMap::GetDefaultValue(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    return FALSE;
+//    DefWindowProc(hWnd,message,wParam,lParam);
+    return 0;
 }

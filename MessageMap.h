@@ -7,13 +7,14 @@
 
 #include <map>
 #include <Windows.h>
+#include <vector>
 
 namespace WinApi {
     class CommandMap final {
-        std::map<int, void (*)(HWND, WORD, WORD, LPARAM)> _commandMap;
+        std::map<std::pair<int, int>, void (*)(HWND, WORD, WORD, LPARAM)> _commandMap;
 
     public:
-        void AddHandler(int command, void handler(HWND, WORD, WORD, LPARAM));
+        void AddHandler(int id, void (*handler)(HWND, WORD, WORD, LPARAM), int command);
 
         bool ProcessCommand(HWND hWindow, WPARAM wParam, LPARAM lParam);
     };
@@ -29,8 +30,10 @@ namespace WinApi {
 
         MessageMapBase &AddHandler(UINT message, LRESULT handler(HWND, WPARAM, LPARAM));
 
-        MessageMapBase &AddCommandHandler(int command, void handler(HWND, WORD, WORD, LPARAM));
+        MessageMapBase &AddCommandHandler(int id, int command, void (*handler)(HWND, WORD, WORD, LPARAM));
 
+        MessageMapBase &AddCommandHandlersSet(const std::vector<std::pair<int, bool>> &ids, int command,
+                                              void (*handler)(HWND, WORD, WORD, LPARAM));
         LRESULT ProcessMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     protected:
