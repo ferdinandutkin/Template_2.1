@@ -21,9 +21,10 @@ namespace consts {
                        {WS_CHILD | WS_BORDER, 0, 1, 1, 50, 50, 1234}, 0xFFFF, 0x0083, L"Test", 0
     };
     const std::vector<std::wstring> operations[] = {{L"+", L"-", L"*", L"/", L"%"},
-                                                    {L"&", L"˅", L"^"}};//⊕
-    const std::wstring operation_names[] = {L"Арифметические", L"Логические"};
-    const int number_of_operations = 2;
+                                                    {L"&", L"|", L"^",},
+                                                    {L"&", L"|", L"^", L"⇒", L"⇔"}};//L"&", L"˅", L"⊕"
+    const std::wstring operation_names[] = {L"Арифметические", L"Битовые", L"Логические"};
+    const int number_of_operations = 3;
 }
 
 enum Control_ids {
@@ -63,10 +64,11 @@ class Program {
     static std::vector<std::pair<int, bool> > operation_ids_set;
 
 
-    static void make_operation_set() {
+    static void init_operation_set() {
         for (int i = 200; i < 200 + consts::number_of_operations; i++)
             operation_ids_set.emplace_back(std::make_pair(i, true));
         operation_ids_set[1].second = false;
+        operation_ids_set[2].second = false;
     }
 
     static void init_message_map() {
@@ -102,13 +104,13 @@ class Program {
 
     static void init_dialog(HWND hwnd) {
         SetWindowLong(hwnd, GWL_STYLE, DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU);
-        SetWindowPos(_hDialog, nullptr, 0, 0, 500, 250, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        SetWindowPos(_hDialog, nullptr, 0, 0, 500, 250 + 20 * (consts::number_of_operations - 3),
+                     SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
         _font = CreateFont(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Arial");
         SetWindowFont(_hDialog, _font, 0);
         SetWindowText(_hDialog, consts::title);
     }
 
-    static HWND CreateSlider(int min_val, int max_val, Control_ids id);
 
     static void init_controls(HWND hwnd) {
         operand1 = CreateEditBox(30, 30, id_operand1);
@@ -125,7 +127,7 @@ class Program {
 public:
     static int main(HINSTANCE hInstance, int nCmdShow) {
         hinst = hInstance;
-        make_operation_set();
+        init_operation_set();
         init_message_map();
 
         auto Dlg = CreateDialogIndirectParam(hinst, &consts::md.mHeader, nullptr, DialogProc, 0);
@@ -171,12 +173,9 @@ public:
 
         if (state1 && state2)
             if (state.calc_in_real_time || button_pressed) {
-                double res = operation(oper1, oper2);
-                std::wstringstream ss;
-                ss << std::fixed << std::setprecision(state.precision) << res;
-                std::wstring str;
-                ss >> str;
-                SetWindowText(result, str.c_str());
+                std::wstring res = operation(oper1, oper2);
+
+                SetWindowText(result, res.c_str());
                 button_pressed = false;
             } else {
                 Button_Enable(button, true);
@@ -205,7 +204,7 @@ public:
         }
     }
 
-    static void ch_radio_change_to_logical(HWND hwnd, WORD LoWord, WORD HiWord, LPARAM lParam) {
+/*    static void ch_radio_change_to_logical(HWND hwnd, WORD LoWord, WORD HiWord, LPARAM lParam) {
         if (!state.operation_set) {
             SendMessage(slider, TBM_SETPOS, TRUE, 0);
             state.precision = 0;
@@ -224,7 +223,7 @@ public:
             upd_combo_box();
             upd_edits();
         }
-    }
+    }*/
 
     static void chs_change_operations(HWND hwnd, WORD LoWord, WORD HiWord, LPARAM lParam) {
         if (state.operation_set == LoWord - operation_ids_set.front().first) {
@@ -274,39 +273,93 @@ public:
             return false;
         if ((state.operation_set == 1 || Operator == 4) && (int) a != a)
             return false;
+        if (state.operation_set == 2 && a != 0 && a != 1)
+            return false;
         return s.empty();
 
 
     }
 
-    static double operation(double op1, double op2) {
+    static std::wstring operation(double op1, double op2) {
         int Operator = ComboBox_GetCurSel(combo_box);
-        if (state.operation_set) {
-            switch (Operator) {
-                case 0:
-                    return (((int) op1) & ((int) op2));
-                case 1:
-                    return (((int) op1) | ((int) op2));
-                case 2:
-                    return (((int) op1) ^ ((int) op2));
-                default:
-                    return -INFINITE;
+        switch (state.operation_set) {
+            case 0: {
+                double res = 0;
+                switch (Operator) {
+                    case 0:
+                        res = op1 + op2;
+                        break;
+                    case 1:
+                        res = op1 - op2;
+                        break;
+                    case 2:
+                        res = op1 * op2;
+                        break;
+                    case 3:
+                        res = op1 / op2;
+                        break;
+                    case 4:
+                        res = (unsigned int) op1 % (unsigned int) op2;
+                        break;
+                    default:
+                        break;
+                }
+                std::wstringstream ss;
+                ss << std::fixed << std::setprecision(state.precision) << res;
+                std::wstring str;
+                ss >> str;
+                return str;
             }
-        } else
-            switch (Operator) {
-                case 0:
-                    return op1 + op2;
-                case 1:
-                    return op1 - op2;
-                case 2:
-                    return op1 * op2;
-                case 3:
-                    return op1 / op2;
-                case 4:
-                    return (int) op1 % (int) op2;
-                default:
-                    return -INFINITE;
+            case 1: {
+                unsigned int res = 0;
+                switch (Operator) {
+                    case 0:
+                        res = (((unsigned int) op1) & ((unsigned int) op2));
+                        break;
+                    case 1:
+                        res = (((unsigned int) op1) | ((unsigned int) op2));
+                        break;
+                    case 2:
+                        res = (((unsigned int) op1) ^ ((unsigned int) op2));
+                        break;
+                    default:
+                        break;
+                }
+                std::wstringstream ss;
+                ss << res;
+                std::wstring str;
+                ss >> str;
+                return str;
             }
+            case 2: {
+                bool res = false;
+                switch (Operator) {
+                    case 0:
+                        res = (((bool) op1) && ((bool) op2));
+                        break;
+                    case 1:
+                        res = (((bool) op1) || ((bool) op2));
+                        break;
+                    case 2:
+                        res = (((bool) op1) ^ ((bool) op2));
+                        break;
+                    case 3:
+                        res = ((!((unsigned int) op1)) || ((unsigned int) op2));
+                        break;
+                    case 4:
+                        res = !(((bool) op1) ^ ((bool) op2));
+                        break;
+                    default:
+                        break;
+                }
+                std::wstringstream ss;
+                ss << std::fixed << std::boolalpha << res;
+                std::wstring str;
+                ss >> str;
+                return str;
+            }
+        }
+
     }
 
     static void upd_combo_box();
@@ -341,11 +394,12 @@ private:
     }
 
     static HWND CreateRadioBoxForOperations(int x, int y, Control_ids id) {
-        auto new_radio_box = CreateControl(WC_BUTTON, BS_GROUPBOX, x, y, 200, 90, id, L"Выберите операции");
+        auto new_radio_box = CreateControl(WC_BUTTON, BS_GROUPBOX, x, y, 200,
+                                           90 + (consts::number_of_operations - 3) * 20, id, L"Выберите операции");
         auto btn1 = CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON | WS_GROUP, x + 10, y + 20, 180, 20,
                                   operation_ids_set[0].first, consts::operation_names[0].c_str());
         for (int i = 1; i < consts::number_of_operations; i++)
-            auto btn = CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON, x + 10, y + 20 + 40 * i, 180, 20,
+            auto btn = CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON, x + 10, y + 20 + 20 * i, 180, 20,
                                      operation_ids_set[i].first, consts::operation_names[i].c_str());
         SendMessage(btn1, BM_SETCHECK, BST_CHECKED, 1);
         return new_radio_box;
@@ -363,6 +417,8 @@ private:
         SendMessage(combo_box, CB_SETCURSEL, (WPARAM) 0, (LPARAM) 0);
         return combo_box;
     }
+
+    static HWND CreateSlider(int min_val, int max_val, Control_ids id);
 
     static void insert_strings(HWND combo_box, const std::vector<std::wstring> &pString);
 };
