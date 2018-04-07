@@ -8,6 +8,8 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <fstream>
+#include <io.h>
 #include "MessageMap.h"
 #include "WindowClass.h"
 #include "Window.h"
@@ -46,6 +48,11 @@ class Program {
             calc_in_real_time = false;
             operation_set = 0;
             precision = 0;
+            cur_operation = 0;
+            if (access("last state.txt", 0) != -1) {
+                std::ifstream fin("last state.txt", std::ios::in | std::ios::binary);
+                fin.read((char *) (this), sizeof(*this));
+            }
         }
 
         bool calc_in_real_time;
@@ -53,22 +60,27 @@ class Program {
         //! 0 for arithmetic
         //! 1 for logical
         int precision;
+        int cur_operation;
     } state;
 
     static HINSTANCE hinst;
     static HWND _hDialog;
 
     static HFONT _font;
-    static HWND operand1, operand2, result, radio_box, check_box, combo_box, button, slider;
+    static HWND operand1, operand2, result, check_box, combo_box, button, slider;
     static bool button_pressed;
     static std::vector<std::pair<int, bool> > operation_ids_set;
+    static std::vector<std::wstring(*)(double, double, int)> operation_handlers_set;
 
 
-    static void init_operation_set() {
+    static void init_operation_sets() {
         for (int i = 200; i < 200 + consts::number_of_operations; i++)
             operation_ids_set.emplace_back(std::make_pair(i, true));
         operation_ids_set[1].second = false;
         operation_ids_set[2].second = false;
+        operation_handlers_set.push_back(arithm_operation);
+        operation_handlers_set.push_back(bit_operation);
+        operation_handlers_set.push_back(logic_operation);
     }
 
     static void init_message_map() {
@@ -89,8 +101,7 @@ class Program {
 
     static int main_loop() {
         MSG message;
-        BOOL result;
-        while ((result = GetMessage(&message, nullptr, 0, 0))) {
+        while (GetMessage(&message, nullptr, 0, 0)) {
             if (!IsDialogMessageW(_hDialog, &message)) {
                 TranslateMessage(&message);
                 DispatchMessageW(&message);
@@ -118,16 +129,17 @@ class Program {
         operand2 = CreateEditBox(185, 30, id_operand2);
         button = CreateControl(WC_BUTTON, WS_TILED | WS_BORDER | WS_DISABLED, 290, 30, 30, 20, id_button, L"=");
         result = CreateEditBox(330, 30, id_rezult, 100, 20, ES_READONLY, L"Ошибка");
-        radio_box = CreateRadioBoxForOperations(30, 110, id_radio_box);
+        CreateRadioBoxForOperations(30, 110, id_radio_box);
         check_box = CreateControl(WC_BUTTON, WS_TABSTOP | BS_AUTOCHECKBOX, 240, 130, 150, 20, id_check_box,
                                   L"Считать сразу");
+        SendMessage(check_box, BM_SETCHECK, state.calc_in_real_time ? BST_CHECKED : BST_UNCHECKED, 1);
         slider = CreateSlider(0, 3, id_slider);
     }
 
 public:
     static int main(HINSTANCE hInstance, int nCmdShow) {
         hinst = hInstance;
-        init_operation_set();
+        init_operation_sets();
         init_message_map();
 
         auto Dlg = CreateDialogIndirectParam(hinst, &consts::md.mHeader, nullptr, DialogProc, 0);
@@ -145,6 +157,8 @@ public:
     }
 
     static void on_close(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        std::ofstream fout("last state.txt", std::ios::out | std::ios::trunc | std::ios::binary);
+        fout.write((char *) (&state), sizeof(state));
         DestroyWindow(hwnd);
     }
 
@@ -200,7 +214,7 @@ public:
         upd_edits();
         if (HiWord == CBN_SELCHANGE) {
             int ItemIndex = SendMessage((HWND) lParam, (UINT) CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0);
-
+            state.cur_operation = ItemIndex;
         }
     }
 
@@ -225,17 +239,21 @@ public:
         }
     }*/
 
-    static void chs_change_operations(HWND hwnd, WORD LoWord, WORD HiWord, LPARAM lParam) {
-        if (state.operation_set == LoWord - operation_ids_set.front().first) {
-            return;
-        }
-        if (std::binary_search(operation_ids_set.begin(), operation_ids_set.end(), std::make_pair((int) LoWord, true)))
+    static void change_slider_state(HWND slider, int operator_id) {
+        if (std::binary_search(operation_ids_set.begin(), operation_ids_set.end(), std::make_pair(operator_id, true)))
             EnableWindow(slider, 1);
         else {
             SendMessage(slider, TBM_SETPOS, TRUE, 0);
             state.precision = 0;
             EnableWindow(slider, 0);
         }
+    }
+
+    static void chs_change_operations(HWND hwnd, WORD LoWord, WORD HiWord, LPARAM lParam) {
+        if (state.operation_set == LoWord - operation_ids_set.front().first) {
+            return;
+        }
+        change_slider_state(slider, LoWord);
 
         state.operation_set = LoWord - operation_ids_set.front().first;
 
@@ -280,86 +298,87 @@ public:
 
     }
 
+    static std::wstring arithm_operation(double op1, double op2, int Operator) {
+        double res = 0;
+        switch (Operator) {
+            case 0:
+                res = op1 + op2;
+                break;
+            case 1:
+                res = op1 - op2;
+                break;
+            case 2:
+                res = op1 * op2;
+                break;
+            case 3:
+                res = op1 / op2;
+                break;
+            case 4:
+                res = (unsigned int) op1 % (unsigned int) op2;
+                break;
+            default:
+                break;
+        }
+        std::wstringstream ss;
+        ss << std::fixed << std::setprecision(state.precision) << res;
+        std::wstring str;
+        ss >> str;
+        return str;
+    }
+
+    static std::wstring bit_operation(double op1, double op2, int Operator) {
+        unsigned int res = 0;
+        switch (Operator) {
+            case 0:
+                res = (((unsigned int) op1) & ((unsigned int) op2));
+                break;
+            case 1:
+                res = (((unsigned int) op1) | ((unsigned int) op2));
+                break;
+            case 2:
+                res = (((unsigned int) op1) ^ ((unsigned int) op2));
+                break;
+            default:
+                break;
+        }
+        std::wstringstream ss;
+        ss << res;
+        std::wstring str;
+        ss >> str;
+        return str;
+    }
+
+    static std::wstring logic_operation(double op1, double op2, int Operator) {
+        bool res = false;
+        switch (Operator) {
+            case 0:
+                res = (((bool) op1) && ((bool) op2));
+                break;
+            case 1:
+                res = (((bool) op1) || ((bool) op2));
+                break;
+            case 2:
+                res = (((bool) op1) ^ ((bool) op2));
+                break;
+            case 3:
+                res = ((!((unsigned int) op1)) || ((unsigned int) op2));
+                break;
+            case 4:
+                res = !(((bool) op1) ^ ((bool) op2));
+                break;
+            default:
+                break;
+        }
+        std::wstringstream ss;
+        ss << std::fixed << std::boolalpha << res;
+        std::wstring str;
+        ss >> str;
+        return str;
+    }
+
     static std::wstring operation(double op1, double op2) {
         int Operator = ComboBox_GetCurSel(combo_box);
-        switch (state.operation_set) {
-            case 0: {
-                double res = 0;
-                switch (Operator) {
-                    case 0:
-                        res = op1 + op2;
-                        break;
-                    case 1:
-                        res = op1 - op2;
-                        break;
-                    case 2:
-                        res = op1 * op2;
-                        break;
-                    case 3:
-                        res = op1 / op2;
-                        break;
-                    case 4:
-                        res = (unsigned int) op1 % (unsigned int) op2;
-                        break;
-                    default:
-                        break;
-                }
-                std::wstringstream ss;
-                ss << std::fixed << std::setprecision(state.precision) << res;
-                std::wstring str;
-                ss >> str;
-                return str;
-            }
-            case 1: {
-                unsigned int res = 0;
-                switch (Operator) {
-                    case 0:
-                        res = (((unsigned int) op1) & ((unsigned int) op2));
-                        break;
-                    case 1:
-                        res = (((unsigned int) op1) | ((unsigned int) op2));
-                        break;
-                    case 2:
-                        res = (((unsigned int) op1) ^ ((unsigned int) op2));
-                        break;
-                    default:
-                        break;
-                }
-                std::wstringstream ss;
-                ss << res;
-                std::wstring str;
-                ss >> str;
-                return str;
-            }
-            case 2: {
-                bool res = false;
-                switch (Operator) {
-                    case 0:
-                        res = (((bool) op1) && ((bool) op2));
-                        break;
-                    case 1:
-                        res = (((bool) op1) || ((bool) op2));
-                        break;
-                    case 2:
-                        res = (((bool) op1) ^ ((bool) op2));
-                        break;
-                    case 3:
-                        res = ((!((unsigned int) op1)) || ((unsigned int) op2));
-                        break;
-                    case 4:
-                        res = !(((bool) op1) ^ ((bool) op2));
-                        break;
-                    default:
-                        break;
-                }
-                std::wstringstream ss;
-                ss << std::fixed << std::boolalpha << res;
-                std::wstring str;
-                ss >> str;
-                return str;
-            }
-        }
-
+        return operation_handlers_set[state.operation_set](op1, op2, Operator);
     }
 
     static void upd_combo_box();
@@ -396,12 +415,13 @@ private:
     static HWND CreateRadioBoxForOperations(int x, int y, Control_ids id) {
         auto new_radio_box = CreateControl(WC_BUTTON, BS_GROUPBOX, x, y, 200,
                                            90 + (consts::number_of_operations - 3) * 20, id, L"Выберите операции");
-        auto btn1 = CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON | WS_GROUP, x + 10, y + 20, 180, 20,
-                                  operation_ids_set[0].first, consts::operation_names[0].c_str());
+        std::vector<HWND> btns;
+        btns.push_back(CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON | WS_GROUP, x + 10, y + 20, 180, 20,
+                                     operation_ids_set[0].first, consts::operation_names[0].c_str()));
         for (int i = 1; i < consts::number_of_operations; i++)
-            auto btn = CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON, x + 10, y + 20 + 20 * i, 180, 20,
-                                     operation_ids_set[i].first, consts::operation_names[i].c_str());
-        SendMessage(btn1, BM_SETCHECK, BST_CHECKED, 1);
+            btns.push_back(CreateControl(WC_BUTTON, BS_AUTORADIOBUTTON, x + 10, y + 20 + 20 * i, 180, 20,
+                                         operation_ids_set[i].first, consts::operation_names[i].c_str()));
+        SendMessage(btns[state.operation_set], BM_SETCHECK, BST_CHECKED, 1);
         return new_radio_box;
     }
 
@@ -412,9 +432,9 @@ private:
                                        id);
         SetWindowFont(combo_box, _font, 1);
 
-        insert_strings(combo_box, consts::operations[0]);
+        insert_strings(combo_box, consts::operations[state.operation_set]);
 
-        SendMessage(combo_box, CB_SETCURSEL, (WPARAM) 0, (LPARAM) 0);
+        SendMessage(combo_box, CB_SETCURSEL, (WPARAM) state.cur_operation, (LPARAM) 1);
         return combo_box;
     }
 
@@ -426,11 +446,13 @@ private:
 WinApi::DialogMessageMap Program::message_map;
 HINSTANCE Program::hinst;
 HWND Program::_hDialog;
-HWND Program::operand1, Program::operand2, Program::result, Program::radio_box, Program::check_box, Program::combo_box, Program::button, Program::slider;
+HWND Program::operand1, Program::operand2, Program::result, Program::check_box, Program::combo_box, Program::button, Program::slider;
 bool  Program::button_pressed = false;
 Program::State Program::state;
 HFONT Program::_font;
 std::vector<std::pair<int, bool> > Program::operation_ids_set;
+std::vector<std::wstring(*)(double, double, int)> Program::operation_handlers_set;
+
 
 void Program::upd_combo_box() {
     SendMessage(combo_box, CB_RESETCONTENT, 0, 0);
@@ -451,6 +473,8 @@ void Program::upd_edits() {
 HWND Program::CreateSlider(int min_val, int max_val, Control_ids id) {
     auto slider = CreateControl(TRACKBAR_CLASS, WS_TABSTOP | TBS_AUTOTICKS | TBS_HORZ, 240, 160, 150, 32, id);
     SendMessage(slider, TBM_SETRANGE, TRUE, MAKELONG(min_val, max_val));
+    SendMessage(slider, TBM_SETPOS, TRUE, state.precision);
+    change_slider_state(slider, operation_ids_set[state.operation_set].first);
     return slider;
 }
 

@@ -61,7 +61,6 @@ WinApi::MessageMapBase &
 WinApi::MessageMapBase::AddCommandHandlersSet(const std::vector<std::pair<int, bool> > &ids, int command,
                                               void (*handler)(HWND, WORD, WORD, LPARAM)) {
     for (auto i:ids) {
-        std::cout << 1;
         AddCommandHandler(i.first, command, handler);
     }
     return *this;
