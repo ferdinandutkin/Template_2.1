@@ -37,21 +37,26 @@ WinApi::MessageMapBase::AddCommandHandler(int command, void (*handler)(HWND, WOR
 }
 
 LRESULT WinApi::MessageMapBase::ProcessMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    if (message == WM_COMMAND && _commandMap.ProcessCommand(hWnd, wParam, lParam)) {
-        return GetProcessedValue();
-    }
-
     auto lResultIterator = _messageWithResultMap.find(message);
     if (lResultIterator != _messageWithResultMap.end()) {
-        return lResultIterator->second(hWnd, wParam, lParam);
+        auto result = lResultIterator->second(hWnd, wParam, lParam);
+        if (message == WM_COMMAND && _commandMap.ProcessCommand(hWnd, wParam, lParam)) {
+            return GetProcessedValue();
+        }
+        return result;
     }
 
     auto voidIterator = _messageMap.find(message);
     if (voidIterator != _messageMap.end()) {
         voidIterator->second(hWnd, wParam, lParam);
+        if (message == WM_COMMAND && _commandMap.ProcessCommand(hWnd, wParam, lParam)) {
+            return GetProcessedValue();
+        }
         return GetProcessedValue();
     }
-
+    if (message == WM_COMMAND && _commandMap.ProcessCommand(hWnd, wParam, lParam)) {
+        return GetProcessedValue();
+    }
     return GetDefaultValue(hWnd, message, wParam, lParam);
 }
 
