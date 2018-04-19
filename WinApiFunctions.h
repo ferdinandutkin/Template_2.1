@@ -8,44 +8,23 @@
 #include <windows.h>
 #include <utility>
 
-std::pair<HDC, PAINTSTRUCT> Begin_Paint(HWND hwnd);
+namespace WinApi {
+    std::pair<HDC, PAINTSTRUCT> BeginPaint(HWND hwnd);
 
-RECT rect_to_screen(HWND hwnd, RECT rect);
+    RECT rect_to_screen(HWND hwnd, RECT rect);
 
-class DoubleBuffering {
-    HDC hdc, memory_context;
-    HWND hwnd;
-    PAINTSTRUCT ps;
-    bool need_to_end_paint = false;
-    HGDIOBJ old_bitmap;
+    COLORREF GetRandColor();
 
-public:
-    static int GetRectWidth(RECT rect);
+    void ReleaseOldObj(HDC hdc, HGDIOBJ obj);
 
-    static int GetRectHeigth(RECT rect);
+    RECT GetClientRect(HWND hwnd);
 
-    static HGDIOBJ SelectBufferBitmap(HDC deviceContext, HDC memoryContext, RECT clientRect);
+    void ClearBackgroud(HDC deviceContext, RECT clientRect);
 
-    static void ClearBackgroud(HDC deviceContext, RECT clientRect);
+    int GetRectWidth(RECT rect);
 
-    static void on_clear_background(HWND hwnd, WPARAM wparam, LPARAM lparam);
+    int GetRectHeigth(RECT rect);
 
-    static void CopyContextBits(HDC destination, HDC source, RECT clientRect);
-
-    static void ReleaseOldObj(HDC hdc, HGDIOBJ obj);
-
-    static RECT GetClientRect(HWND hwnd);
-
-    DoubleBuffering(HWND hwnd, HDC hdc);
-
-    DoubleBuffering(HWND hwnd);
-
-    DoubleBuffering(HWND hwnd, std::pair<HDC, PAINTSTRUCT> paint);
-
-    operator HDC();
-
-    ~DoubleBuffering();
-};
-
+}
 
 #endif //UNTITLED7_WINAPIFUNCTIONS_H
