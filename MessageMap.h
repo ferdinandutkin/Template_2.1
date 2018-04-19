@@ -10,26 +10,32 @@
 
 namespace WinApi {
     class CommandMap final {
-        std::map<int, void (*)(HWND, WORD, WORD, LPARAM)> _commandMap;
+        std::map<int, void (*)(HWND, WPARAM, LPARAM)> _commandMap;
 
     public:
-        void AddHandler(int command, void handler(HWND, WORD, WORD, LPARAM));
+        void AddHandler(int command, void (*handler)(HWND, WPARAM, LPARAM));
 
         bool ProcessCommand(HWND hWindow, WPARAM wParam, LPARAM lParam);
     };
 
 
     class MessageMapBase {
-        std::map<UINT, void (*)(HWND, WPARAM, LPARAM)> _messageMap;
-        std::map<UINT, LRESULT(*)(HWND, WPARAM, LPARAM)> _messageWithResultMap;
-        CommandMap _commandMap;
+    public:
+        typedef void (*MessageHandler)(HWND, WPARAM, LPARAM);
 
+        typedef LRESULT (*MessageHandlerWithResult)(HWND, WPARAM, LPARAM);
+
+    private:
+        std::map<UINT, MessageHandler> _messageMap;
+        std::map<UINT, LRESULT(*)(HWND, WPARAM, LPARAM)> _messageWithResultMap;
+
+        CommandMap _commandMap;
     public:
         MessageMapBase &AddHandler(UINT message, void handler(HWND, WPARAM, LPARAM));
 
         MessageMapBase &AddHandler(UINT message, LRESULT handler(HWND, WPARAM, LPARAM));
 
-        MessageMapBase &AddCommandHandler(int command, void handler(HWND, WORD, WORD, LPARAM));
+        MessageMapBase &AddCommandHandler(int command, void (*handler)(HWND, WPARAM, LPARAM));
 
         LRESULT ProcessMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 

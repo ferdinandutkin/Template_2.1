@@ -8,18 +8,22 @@
 #include "MessageMap.h"
 #include "WindowClass.h"
 #include "Window.h"
+#include "MenuClass.h"
 
 namespace consts {
     LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
     LPCTSTR title = L"Main Window";
 }
 
+
 class Program {
     static WinApi::MessageMap message_map;
     static HINSTANCE hinst;
+    static WinApi::MenuClass menu_class;
 
     static void init_message_map() {
-        message_map.AddHandler(WM_CREATE, on_create)
+        message_map
+                .AddHandler(WM_CREATE, on_create)
                 .AddHandler(WM_PAINT, on_paint)
                 .AddHandler(WM_DESTROY, on_destroy);
     }
@@ -53,7 +57,12 @@ public:
 
 
     static LRESULT on_create(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        menu_class
+                .CreateMenuClass(hwnd, message_map)
+
+                .SetMenu();
     }
+
 
     static LRESULT on_paint(HWND hwnd, WPARAM wparam, LPARAM lparam) {
 
@@ -71,8 +80,7 @@ public:
 
 WinApi::MessageMap Program::message_map;
 HINSTANCE Program::hinst;
-
-
+WinApi::MenuClass Program::menu_class;
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 

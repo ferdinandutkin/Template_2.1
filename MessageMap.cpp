@@ -4,7 +4,7 @@
 
 #include "MessageMap.h"
 
-void WinApi::CommandMap::AddHandler(int command, void (*handler)(HWND, WORD, WORD, LPARAM)) {
+void WinApi::CommandMap::AddHandler(int command, void (*handler)(HWND, WPARAM, LPARAM)) {
     _commandMap.insert(std::make_pair(command, handler));
 }
 
@@ -12,8 +12,7 @@ bool WinApi::CommandMap::ProcessCommand(HWND hWindow, WPARAM wParam, LPARAM lPar
     auto loWord = LOWORD(wParam);
     auto iterator = _commandMap.find(loWord);
     if (iterator != _commandMap.end()) {
-        auto hiWord = HIWORD(wParam);
-        iterator->second(hWindow, loWord, hiWord, lParam);
+        iterator->second(hWindow, wParam, lParam);
         return true;
     }
 
@@ -31,7 +30,7 @@ WinApi::MessageMapBase &WinApi::MessageMapBase::AddHandler(UINT message, LRESULT
 }
 
 WinApi::MessageMapBase &
-WinApi::MessageMapBase::AddCommandHandler(int command, void (*handler)(HWND, WORD, WORD, LPARAM)) {
+WinApi::MessageMapBase::AddCommandHandler(int command, void (*handler)(HWND, WPARAM, LPARAM)) {
     _commandMap.AddHandler(command, handler);
     return *this;
 }
