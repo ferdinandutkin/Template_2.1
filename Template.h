@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <commctrl.h>
 
-
+#include "DialogClass.h"
 #include "MessageMap.h"
 #include "WindowClass.h"
 #include "Window.h"

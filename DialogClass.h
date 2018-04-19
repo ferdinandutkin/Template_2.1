@@ -5,9 +5,9 @@
 #ifndef UNTITLED7_DIALOGCLASS_H
 #define UNTITLED7_DIALOGCLASS_H
 
+#include "Template.h"
 #include <windows.h>
 #include <functional>
-#include "Template.h"
 
 namespace WinApi {
 
@@ -33,11 +33,43 @@ namespace WinApi {
 
         } md = {{WS_CAPTION | WS_VISIBLE | DS_CENTER, 0, 1, 10, 10, 100, 100}, 0, 0, L"Test",
                 {WS_CHILD | WS_BORDER, 0, 1, 1, 50, 50, 1234}, 0xFFFF, 0x0083, L"Test", 0};
+
         HWND _hdialog;
     public:
         HCreateDialog(HINSTANCE hinst, HWND parent, DLGPROC proc);
 
-        operator HWND();
+        operator HWND() const;
+    };
+
+
+    class InitialiseDialogAndControlls {
+        HWND _hdialog;
+        HINSTANCE hinst;
+    public:
+        const static unsigned long default_dialog_style;
+
+        InitialiseDialogAndControlls(HINSTANCE hinst, HWND h_dialog) : _hdialog(h_dialog), hinst(hinst) {}
+
+        InitialiseDialogAndControlls &
+        CreateControl(const wchar_t *className, unsigned long style, int x, int y, int width, int height, int id,
+                      LPCWSTR name = L"");    //!style|WS_VISIBLE|WS_CHILD
+
+//!     prefix: E
+        InitialiseDialogAndControlls &
+        CreateEditBox(POINT pos, int id, int width, int height, unsigned long style = 0, LPCWSTR str = L"");
+
+//!     prefix: CB
+        InitialiseDialogAndControlls &CreateComboBox(POINT pos, int id, int width, int height, unsigned long style = 0);
+
+//!     prefix: TB
+        InitialiseDialogAndControlls &
+        CreateSlider(POINT pos, int id, int width, int height, int min_val = 0, int max_val = 10,
+                     unsigned long style = 0);
+
+//TODO: add CreateButton, CreateCheckBox
+        InitialiseDialogAndControlls &
+        init_dialog(POINT pos = {0, 0}, int width = 500, int height = 250, const std::wstring &title = L"Dialog",
+                    unsigned long style = default_dialog_style);
     };
 }
 
