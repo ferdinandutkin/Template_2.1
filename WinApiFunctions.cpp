@@ -85,3 +85,12 @@ std::pair<HDC, PAINTSTRUCT> Begin_Paint(HWND hwnd) {
     BeginPaint(hwnd, &ps);
     return std::make_pair(ps.hdc, ps);
 }
+
+RECT rect_to_screen(HWND hwnd, RECT rect) {
+    POINT positionLeftTop = {rect.left, rect.top};
+    ClientToScreen(hwnd, &positionLeftTop);
+    POINT positionRightBottom = {rect.right, rect.bottom};
+    ClientToScreen(hwnd, &positionRightBottom);
+    SetRect(&rect, positionLeftTop.x, positionLeftTop.y, positionRightBottom.x, positionRightBottom.y);
+    return rect;
+}

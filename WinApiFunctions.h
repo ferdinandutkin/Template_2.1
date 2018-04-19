@@ -10,6 +10,8 @@
 
 std::pair<HDC, PAINTSTRUCT> Begin_Paint(HWND hwnd);
 
+RECT rect_to_screen(HWND hwnd, RECT rect);
+
 class DoubleBuffering {
     HDC hdc, memory_context;
     HWND hwnd;
@@ -44,5 +46,6 @@ public:
 
     ~DoubleBuffering();
 };
+
 
 #endif //UNTITLED7_WINAPIFUNCTIONS_H
