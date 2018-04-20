@@ -66,7 +66,26 @@ namespace WinApi {
         CreateSlider(POINT pos, int id, int width, int height, int min_val = 0, int max_val = 10,
                      unsigned long style = 0);
 
-//TODO: add CreateButton, CreateCheckBox
+        InitialiseDialogAndControlls &
+        _CreateButton(POINT pos, int id, int width, int height, unsigned long style = 0,
+                      const std::wstring &name = L"");
+
+        InitialiseDialogAndControlls &
+        CreatePushButton(POINT pos, int id, int width, int height, unsigned long style = 0,
+                         const std::wstring &name = L"");
+
+        InitialiseDialogAndControlls &
+        CreateCheckBox(POINT pos, int id, int width, int height, unsigned long style = 0,
+                       const std::wstring &name = L"") {
+            return _CreateButton(pos, id, width, height, BS_AUTOCHECKBOX | style, name);
+        }
+
+        InitialiseDialogAndControlls &
+        CreateGroupBox(POINT pos, int id, int width, int height, unsigned long style = 0,
+                       const std::wstring &name = L"") {
+            return _CreateButton(pos, id, width, height, BS_GROUPBOX | style, name);
+        }
+
         InitialiseDialogAndControlls &
         init_dialog(POINT pos = {0, 0}, int width = 500, int height = 250, const std::wstring &title = L"Dialog",
                     unsigned long style = default_dialog_style);

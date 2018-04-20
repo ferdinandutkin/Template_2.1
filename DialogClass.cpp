@@ -62,4 +62,16 @@ namespace WinApi {
         SetWindowText(_hdialog, title.c_str());
         return *this;
     }
+
+    InitialiseDialogAndControlls &
+    InitialiseDialogAndControlls::_CreateButton(POINT pos, int id, int width, int height, unsigned long style,
+                                                const std::wstring &name) {
+        return CreateControl(WC_BUTTON, style, pos.x, pos.y, width, height, id, name.c_str());
+    }
+
+    InitialiseDialogAndControlls &
+    InitialiseDialogAndControlls::CreatePushButton(POINT pos, int id, int width, int height, unsigned long style,
+                                                   const std::wstring &name) {
+        return _CreateButton(pos, id, width, height, BS_PUSHBUTTON | style, name);
+    }
 }
