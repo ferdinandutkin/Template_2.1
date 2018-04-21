@@ -20,11 +20,12 @@ namespace WinApi {
 
         static HGDIOBJ SelectBufferBitmap(HDC deviceContext, HDC memoryContext, RECT clientRect);
 
-        static void on_clear_background(HWND hwnd, WPARAM wparam, LPARAM lparam);
-
         DoubleBuffering(HWND hwnd, std::pair<HDC, PAINTSTRUCT> paint);
 
     public:
+
+//!     WM_ERASEBKGND
+        static void on_clear_background(HWND hwnd, WPARAM wparam, LPARAM lparam);
 
         DoubleBuffering(HWND hwnd, HDC hdc);
 

@@ -7,11 +7,14 @@
 
 #include <windows.h>
 #include <utility>
+#include <ctime>
 
 namespace WinApi {
     std::pair<HDC, PAINTSTRUCT> BeginPaint(HWND hwnd);
 
-    RECT rect_to_screen(HWND hwnd, RECT rect);
+    RECT GetWindowRect(HWND hwnd);
+
+    RECT RectToScreen(HWND hwnd, RECT rect);
 
     COLORREF GetRandColor();
 
@@ -24,7 +27,6 @@ namespace WinApi {
     int GetRectWidth(RECT rect);
 
     int GetRectHeigth(RECT rect);
-
 }
 
 #endif //UNTITLED7_WINAPIFUNCTIONS_H

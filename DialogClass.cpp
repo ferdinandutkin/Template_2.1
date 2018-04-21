@@ -74,4 +74,22 @@ namespace WinApi {
                                                    const std::wstring &name) {
         return _CreateButton(pos, id, width, height, BS_PUSHBUTTON | style, name);
     }
+
+    InitialiseDialogAndControlls &
+    InitialiseDialogAndControlls::CreateCheckBox(POINT pos, int id, int width, int height, unsigned long style,
+                                                 const std::wstring &name) {
+        return _CreateButton(pos, id, width, height, BS_AUTOCHECKBOX | style, name);
+    }
+
+    InitialiseDialogAndControlls &
+    InitialiseDialogAndControlls::CreateGroupBox(POINT pos, int id, int width, int height, unsigned long style,
+                                                 const std::wstring &name) {
+        return _CreateButton(pos, id, width, height, BS_GROUPBOX | style, name);
+    }
+
+    InitialiseDialogAndControlls &
+    InitialiseDialogAndControlls::CreateStaticBox(POINT pos, int width, int height, unsigned long style,
+                                                  const std::wstring &name) {
+        return CreateControl(WC_STATIC, style, pos.x, pos.y, width, height, 0, name.c_str());
+    }
 }

@@ -3,6 +3,7 @@
 //
 
 #include <random>
+#include <ctime>
 #include "WinApiFunctions.h"
 
 namespace WinApi {
@@ -39,7 +40,7 @@ namespace WinApi {
         return std::make_pair(ps.hdc, ps);
     }
 
-    RECT rect_to_screen(HWND hwnd, RECT rect) {
+    RECT RectToScreen(HWND hwnd, RECT rect) {
         POINT positionLeftTop = {rect.left, rect.top};
         ClientToScreen(hwnd, &positionLeftTop);
         POINT positionRightBottom = {rect.right, rect.bottom};
@@ -48,8 +49,14 @@ namespace WinApi {
         return rect;
     }
 
+
     COLORREF GetRandColor() {
-        std::linear_congruential_engine<unsigned char, 123, 456, 256> rand;
         return RGB(rand() % 256, rand() % 256, rand() % 256);
+    }
+
+    RECT GetWindowRect(HWND hwnd) {
+        RECT r;
+        ::GetWindowRect(hwnd, &r);
+        return r;
     }
 }

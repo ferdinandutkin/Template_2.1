@@ -76,16 +76,15 @@ namespace WinApi {
 
         InitialiseDialogAndControlls &
         CreateCheckBox(POINT pos, int id, int width, int height, unsigned long style = 0,
-                       const std::wstring &name = L"") {
-            return _CreateButton(pos, id, width, height, BS_AUTOCHECKBOX | style, name);
-        }
+                       const std::wstring &name = L"");
 
         InitialiseDialogAndControlls &
         CreateGroupBox(POINT pos, int id, int width, int height, unsigned long style = 0,
-                       const std::wstring &name = L"") {
-            return _CreateButton(pos, id, width, height, BS_GROUPBOX | style, name);
-        }
+                       const std::wstring &name = L"");
 
+        InitialiseDialogAndControlls &
+        CreateStaticBox(POINT pos, int width, int height, unsigned long style = 0,
+                        const std::wstring &name = L"");
         InitialiseDialogAndControlls &
         init_dialog(POINT pos = {0, 0}, int width = 500, int height = 250, const std::wstring &title = L"Dialog",
                     unsigned long style = default_dialog_style);
