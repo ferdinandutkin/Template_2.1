@@ -56,6 +56,8 @@ class Program {
         }
 
     public:
+        Ball() : radius(0), position(), color(colors::black) {}
+
         void init_ball(RECT rect) {
             color = colors::red;
             position = Vector<int>(random(rect.left + radius, rect.right - radius),
@@ -173,26 +175,26 @@ public:
         switch (wparam) {
             case (keys::W):
             case VK_UP: {
-                ball.move_ball(Vector<int>(0, -1 * speed), rect);
+                ball.move_ball(Vector<int>(0, static_cast<int>(-1 * speed)), rect);
                 break;
             }
 
             case (keys::A):
             case VK_LEFT: {
-                ball.move_ball(Vector<int>(-1 * speed, 0), rect);
+                ball.move_ball(Vector<int>(static_cast<int>(-1 * speed), 0), rect);
                 break;
             }
 
             case (keys::S):
             case VK_DOWN: {
-                ball.move_ball(Vector<int>(0, speed), rect);
+                ball.move_ball(Vector<int>(0, static_cast<int>(speed)), rect);
                 break;
             }
 
 
             case (keys::D):
             case VK_RIGHT: {
-                ball.move_ball(Vector<int>(speed, 0), rect);
+                ball.move_ball(Vector<int>(static_cast<int>(speed), 0), rect);
                 break;
             }
 
