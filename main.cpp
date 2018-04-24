@@ -1,110 +1,52 @@
-#define USE_MATH_DEFINES
+#define UNICODE
 
-#include "Template.h"
-#include "Vector.h"
+#include <windows.h>
+#include <vector>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <sstream>
+#include <ntdef.h>
+#include <cmath>
 #include <dshow.h>
-
+#include "MessageMap.h"
+#include "WindowClass.h"
+#include "Window.h"
+#include "Template.h"
 
 namespace consts {
     LPCTSTR main_class_name = L"sdighewirusbgvbszdiv";
     LPCTSTR title = L"Main Window";
-
-    const int min_radius = 10;
-    const int max_radius = 30;
-    const double def_speed = 3;
-    const double shift_accel = 2;
-    const double ctrl_shift_accel = 1.0 / 1.5;
+    const double epselon = 1e-5;
 }
 
-namespace colors {
-    const COLORREF red = RGB(255, 0, 0);
-    const COLORREF green = RGB(0, 255, 0);
-    const COLORREF blue = RGB(0, 0, 255);
-    const COLORREF yellow = RGB(0, 255, 255);
-    const COLORREF black = RGB(0, 0, 0);
-
-}
-
-namespace keys {
-    const auto W = 0x57;
-    const auto A = 0x41;
-    const auto S = 0x53;
-    const auto D = 0x44;
-    const auto P = 0x50;
-}
+enum IDS {
+    id_menu_open = 101, id_menu_settings, id_menu_about, id_menu_exit, id_dialog_list, id_dialog_ok, id_dialog_select
+};
 
 using namespace WinApi;
 
 class Program {
-    class Ball {
-        int radius;
-        Vector<int> position;
-        COLORREF color;
-    public:
-        COLORREF get_color() const {
-            return color;
-        }
-
-    private:
-
-        static void return_to_rect(Vector<int> &point, RECT rect, int radius) {
-            point.x = std::min(point.x, static_cast<int>(rect.right - radius));
-            point.x = std::max(point.x, static_cast<int>(rect.left + radius));
-            point.y = std::min(point.y, static_cast<int>(rect.bottom - radius));
-            point.y = std::max(point.y, static_cast<int>(rect.top + radius));
-        }
-
-    public:
-        void init_ball(RECT rect) {
-            color = colors::red;
-            position = Vector<int>(random(rect.left + radius, rect.right - radius),
-                                   random(rect.top + radius, rect.bottom - radius));
-            radius = random(consts::min_radius, consts::max_radius);
-        }
-
-        void move_ball(Vector<int> direction, RECT rect) {
-            position = position + direction;
-            return_to_rect(position, rect, radius);
-        }
-
-        void set_color(COLORREF _color) {
-            color = _color;
-        }
-
-        std::pair<Vector<int>, int> get_position_and_radius() {
-            return std::make_pair(position, radius);
-        }
-
-        void draw_ball(HDC hdc, RECT rect) {
-            return_to_rect(position, rect, radius);
-            auto brush = CreateSolidBrush(color);
-            brush = (HBRUSH) SelectObject(hdc, brush);
-            Ellipse(hdc, position.x - radius, position.y - radius, position.x + radius, position.y + radius);
-            DeleteObject(SelectObject(hdc, brush));
-        }
-    };
-
-
-    static MessageMap message_map;
-    static DialogMessageMap dialog_message_map;
+    static WinApi::MessageMap message_map;
     static HINSTANCE hinst;
-    static MenuClass menu_class;
-    static HWND _hdialog;
-    static Ball ball;
-    static bool pause;
-    static bool need_to_change_color_to_yellow;
+    static char file[500];
+    struct Participant {
+        std::wstring surname;
+        double score_in_percent;
+        COLORREF color;
+    };
+    static std::vector<Participant> participants;
+    static HWND _hwnd;
+
 
     static void init_message_map() {
-        message_map
-                .AddHandler(WM_CREATE, on_create)
-                .AddHandler(WM_PAINT, on_paint)
+        message_map.AddHandler(WM_PAINT, on_paint)
                 .AddHandler(WM_DESTROY, on_destroy)
-                .AddHandler(WM_KEYDOWN, on_key_down)
-                .AddHandler(WM_MOUSEMOVE, on_mouse_move)
-                .AddHandler(WM_LBUTTONDOWN, on_mouse_left_button_down)
-                .AddHandler(WM_LBUTTONUP, on_mouse_left_button_up)
-                .AddHandler(WM_GETMINMAXINFO, on_min_max_info);
+                .AddHandler(WM_CREATE, on_create)
+                .AddCommandHandler(id_menu_open, ch_open_menu)
+                .AddCommandHandler(id_menu_settings, ch_settings_menu)
+                .AddCommandHandler(id_menu_about, ch_about_menu)
+                .AddCommandHandler(id_menu_exit, ch_exit_menu);
     }
 
     static void DeleteGdiObjects() {
@@ -124,11 +66,7 @@ class Program {
         return (int) message.wParam;
     }
 
-    static bool check_pause(HDC hdc, RECT rect);
-
 public:
-
-
     static int main(HINSTANCE hInstance, int nCmdShow) {
         hinst = hInstance;
         init_message_map();
@@ -138,231 +76,296 @@ public:
         return main_loop();
     }
 
-
-    static LRESULT on_create(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        menu_class
-                .CreateMenuClass(hwnd, message_map)
-
-                .SetMenu();
-
-        ball.init_ball(GetClientRect(hwnd));
-    }
-
+private:
     static LRESULT on_paint(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        auto[hdc, ps]=BeginPaint(hwnd);
 
-        auto hdc = DoubleBuffering(hwnd);
         auto rect = GetClientRect(hwnd);
-        ClearBackgroud(hdc, rect);
+        FillRect(hdc, &rect, WHITE_BRUSH);
+        auto winner = *std::max_element(participants.begin(), participants.end(),
+                                        [](const Participant &p1, const Participant &p2) {
+                                            return p1.score_in_percent < p2.score_in_percent;
+                                        });
 
-        check_pause(hdc, rect);
+        double mashtab = (rect.bottom - 20) / winner.score_in_percent;
+        int x_size = std::min(static_cast<int>((rect.right / 2 - 40) / participants.size() * 3 / 4), 30);
+        int cur_left_pos = 20;
+        int otstup = std::min(static_cast<int>((rect.right / 2 - 40) / participants.size() / 4), 10);
 
-        ball.draw_ball(hdc, rect);
+        for (const auto &i:participants) {
+
+            auto brush = CreateSolidBrush(i.color);
+            brush = (HBRUSH) SelectObject(hdc, brush);
+            Rectangle(hdc, cur_left_pos, static_cast<int>(rect.bottom - i.score_in_percent * mashtab),
+                      (cur_left_pos + x_size), rect.bottom - 20);
+            DeleteObject(SelectObject(hdc, brush));
+            cur_left_pos += x_size + otstup;
+
+            std::wstring str;
+            std::wstringstream ss;
+            ss << i.surname << ' ' << i.score_in_percent << '%';
+            getline(ss, str);
+
+            auto font = CreateFont(0, 0, 2700, 2700, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe Print");
+            font = (HFONT) SelectObject(hdc, font);
+            RECT r;
+            SetRect(&r, cur_left_pos - x_size, 20, cur_left_pos, r.bottom - 20);
+            SetBkMode(hdc, TRANSPARENT);
+            TextOut(hdc, cur_left_pos - otstup, static_cast<int>(rect.bottom - 20 - std::max(
+                    static_cast<int>(i.score_in_percent * mashtab) - 20, 120)), str.c_str(), str.size());
+            DeleteObject(SelectObject(hdc, font));
+        }
+
+        int R = std::min((rect.right / 2 - 40) / 2, (rect.bottom - 40) / 2);
+        POINT center = {rect.right * 3 / 4, rect.bottom / 2};
+        float cur_angle = 0;
+        for (const auto &i:participants) {
+
+            BeginPath(hdc);
+            MoveToEx(hdc, center.x, center.y, nullptr);
+            AngleArc(hdc, center.x, center.y, static_cast<DWORD>(R), cur_angle,
+                     static_cast<FLOAT>(i.score_in_percent * 3.6));
+            LineTo(hdc, center.x, center.y);
+            EndPath(hdc);
+
+            auto brush = CreateSolidBrush(i.color);
+            brush = (HBRUSH) SelectObject(hdc, brush);
+
+            StrokeAndFillPath(hdc);
+
+            DeleteObject(SelectObject(hdc, brush));
+
+            std::wstring str;
+            std::wstringstream ss;
+            ss << i.surname << ' ' << i.score_in_percent << '%';
+            getline(ss, str);
+
+            auto font = CreateFont(0, 0, static_cast<int>((cur_angle + i.score_in_percent * 1.8) * 10),
+                                   static_cast<int>((cur_angle + i.score_in_percent * 1.8) * 10), 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, L"Segoe Print");
+            font = (HFONT) SelectObject(hdc, font);
+
+            SetBkMode(hdc, TRANSPARENT);
+            TextOut(hdc, static_cast<int>(center.x - 18 * sin((cur_angle + i.score_in_percent * 1.8) * M_PI / 180) +
+                                          30 * cos((cur_angle + i.score_in_percent * 1.8) * M_PI / 180)),
+                    static_cast<int>(center.y - 18 * cos((cur_angle + i.score_in_percent * 1.8) * M_PI / 180) -
+                                     30 * sin((cur_angle + i.score_in_percent * 1.8) * M_PI / 180)), str.c_str(),
+                    str.size());
+            DeleteObject(SelectObject(hdc, font));
+
+
+            cur_angle += (i.score_in_percent * 3.6);
+        }
+        EndPaint(hwnd, hdc, ps);
         return 0;
     }
 
-    static void on_key_down(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        if (pause && wparam != keys::P)
-            return;
-        auto rect = GetClientRect(hwnd);
-        auto shift = static_cast<bool>(GetKeyState(VK_SHIFT) & (0x8000));
-        auto ctrl = static_cast<bool>(GetKeyState(VK_CONTROL) & (0x8000));
-
-        auto speed = consts::def_speed * ((!shift) + (shift * (!ctrl) * consts::shift_accel) +
-                                          (shift * ctrl * consts::ctrl_shift_accel));
-
-        switch (wparam) {
-            case (keys::W):
-            case VK_UP: {
-                ball.move_ball(Vector<int>(0, -1 * speed), rect);
-                break;
-            }
-
-            case (keys::A):
-            case VK_LEFT: {
-                ball.move_ball(Vector<int>(-1 * speed, 0), rect);
-                break;
-            }
-
-            case (keys::S):
-            case VK_DOWN: {
-                ball.move_ball(Vector<int>(0, speed), rect);
-                break;
-            }
-
-
-            case (keys::D):
-            case VK_RIGHT: {
-                ball.move_ball(Vector<int>(speed, 0), rect);
-                break;
-            }
-
-            case (keys::P): {
-                pause = !pause;
-                POINT cursor_position;
-                GetCursorPos(&cursor_position);
-                ScreenToClient(hwnd, &cursor_position);
-                on_mouse_move(hwnd, 0, MAKELONG(cursor_position.x, cursor_position.y));
-                break;
-            }
-            default:
-                break;
-        }
-        InvalidateRect(hwnd, nullptr, false);
-    }
-
-    static bool point_in_round(Vector<int> point, Vector<int> round_center, int radius);
-
-    static void on_mouse_move(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        if (pause)
-            return;
-        Vector<int> cursor_pos(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
-        static auto cursor = LoadCursor(nullptr, IDC_HAND);
-        static bool was_in_ball = false;
-        if (auto[position, radius]=ball.get_position_and_radius(); point_in_round(cursor_pos, position, radius)) {
-            SetCursor(cursor);
-            if (need_to_change_color_to_yellow && !(GetKeyState(VK_LBUTTON) & 0x8000))
-                ball.set_color(colors::yellow);
-            was_in_ball = true;
-        } else {
-            if (need_to_change_color_to_yellow && !(GetKeyState(VK_LBUTTON) & 0x8000) && was_in_ball)
-                ball.set_color(colors::red);
-            need_to_change_color_to_yellow = true;
-            was_in_ball = false;
-        }
-        InvalidateRect(hwnd, nullptr, false);
-    }
-
-    static void on_mouse_left_button_down(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        if (pause)
-            return;
-        static auto cursor = LoadCursor(nullptr, IDC_HAND);
-
-        Vector<int> cursor_pos(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
-        if (auto[position, radius]=ball.get_position_and_radius(); point_in_round(cursor_pos, position, radius)) {
-            SetCursor(cursor);
-
-            ball.set_color(colors::black);
-            need_to_change_color_to_yellow = false;
-        }
-        InvalidateRect(hwnd, nullptr, false);
-    }
-
-    static void on_mouse_left_button_up(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        static auto cursor = LoadCursor(nullptr, IDC_HAND);
-        if (pause)
-            return;
-        Vector<int> cursor_pos(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
-        if (auto[position, radius]=ball.get_position_and_radius(); point_in_round(cursor_pos, position, radius)) {
-            SetCursor(cursor);
-            if (ball.get_color() != colors::red)
-                ball.set_color(colors::red);
-            else if (wparam & MK_SHIFT)
-                ball.set_color(colors::blue);
-            else
-                ball.set_color(colors::green);
-            need_to_change_color_to_yellow = false;
-        }
-        InvalidateRect(hwnd, nullptr, false);
-    }
-
-    static void on_min_max_info(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        auto min_max_info = (MINMAXINFO *) lparam;
+    static RECT GetClientRect(HWND hwnd) {
         RECT r;
-        GetWindowRect(hwnd, &r);
-        min_max_info->ptMinTrackSize.x = min_max_info->ptMinTrackSize.y =
-                consts::max_radius * 2 + (GetRectHeigth(r) - GetRectHeigth(GetClientRect(hwnd)));
+        ::GetClientRect(hwnd, &r);
+        return r;
+    }
+
+    static void EndPaint(HWND hwnd, HDC hdc, PAINTSTRUCT ps) {
+        ReleaseDC(hwnd, hdc);
+        ::EndPaint(hwnd, &ps);
+    }
+
+    static std::pair<HDC, PAINTSTRUCT> BeginPaint(HWND hwnd) {
+        PAINTSTRUCT ps;
+        auto hdc = ::BeginPaint(hwnd, &ps);
+        return std::make_pair(hdc, ps);
+    }
+
+    static LRESULT on_create(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        _hwnd = hwnd;
+        auto main_menu = CreateMenu();
+        auto file_menu = CreatePopupMenu();
+        AppendMenu(file_menu, MF_STRING, id_menu_open, L"&Открыть");
+
+        AppendMenu(main_menu, MF_POPUP | MF_STRING, (UINT_PTR) file_menu, L"&Файл");
+        AppendMenu(main_menu, MF_STRING, id_menu_settings, L"&Настройки");
+        AppendMenu(main_menu, MF_STRING, id_menu_about, L"&Справка");
+        AppendMenu(main_menu, MF_STRING, id_menu_exit, L"&Выход");
+        SetMenu(hwnd, main_menu);
+        refresh_data(hwnd);
     }
 
     static void on_destroy(HWND hwnd, WPARAM wparam, LPARAM lparam) {
         PostQuitMessage(0);
     }
 
-    static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-        return message_map.ProcessMessage(hwnd, message, wParam, lParam);
+
+    static void ch_open_menu(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        OPENFILENAMEA openfilename_struct;
+        ZeroMemory(&openfilename_struct, sizeof(openfilename_struct));
+        openfilename_struct.lStructSize = sizeof(openfilename_struct);
+        openfilename_struct.lStructSize = sizeof(OPENFILENAME);
+        openfilename_struct.hwndOwner = hwnd;
+        openfilename_struct.lpstrFile = file;
+        openfilename_struct.nMaxFile = sizeof(file);
+        openfilename_struct.lpstrFilter = "txt\0*.txt\0";
+        openfilename_struct.nFilterIndex = 3;
+        openfilename_struct.lpstrInitialDir = nullptr;
+        openfilename_struct.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+        if (GetOpenFileNameA(&openfilename_struct))
+            refresh_data(hwnd);
     }
 
+    static void ch_settings_menu(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        auto _hDialog = HCreateDialog(hinst, hwnd, settings_dialog_proc);
 
-
-    ////////////////////////////////////////  next functions for dialog  ///////////////////////////////////////////////
-
-    static void init_dialog_message_map() {
-        dialog_message_map
-                .AddHandler(WM_INITDIALOG, on_dialog_initialise)
-                .AddHandler(WM_DISPLAYCHANGE, on_dialog_update)
-                .AddHandler(WM_CLOSE, on_dialog_close)
-                .AddHandler(WM_DESTROY, on_dialog_destroy);
-    }
-
-    static void dialog_loop() {
         MSG message;
+
         while (GetMessage(&message, nullptr, 0, 0)) {
-            if (!IsDialogMessageW(_hdialog, &message)) {
+            if (!IsDialogMessageW(_hDialog, &message)) {
                 TranslateMessage(&message);
                 DispatchMessageW(&message);
             }
         }
-
-    }
-
-    static void call_dialog(HWND hwnd) {
-        init_dialog_message_map();
-        HCreateDialog(hinst, hwnd, dialog_proc);
-        dialog_loop();
-    }
-
-    // "on_dialog" functions
-    static void on_dialog_initialise(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        _hdialog = hwnd;
-        InitialiseDialogAndControlls(hinst, hwnd)
-                .init_dialog()
-                .CreateEditBox({1, 2}, 123, 100, 20);
-    }
-
-    static void on_dialog_update(HWND hwnd, WPARAM wparam, LPARAM lparam) {
         InvalidateRect(hwnd, nullptr, false);
     }
 
-    static void on_dialog_close(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+    static void ch_about_menu(HWND hwnd, WPARAM wparam, LPARAM lparam) {
+        auto _hDialog = HCreateDialog(hinst, hwnd, about_dialog_proc);
+
+        MSG message;
+
+        while (GetMessage(&message, nullptr, 0, 0)) {
+            if (!IsDialogMessageW(_hDialog, &message)) {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+        }
+    }
+
+    static void ch_exit_menu(HWND hwnd, WPARAM wparam, LPARAM lparam) {
         DestroyWindow(hwnd);
     }
 
-    static void on_dialog_destroy(HWND hwnd, WPARAM wparam, LPARAM lparam) {
-        PostQuitMessage(0);
+
+    static void refresh_data(HWND hwnd);
+
+
+    static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+        return message_map.ProcessMessage(hwnd, message, wParam, lParam);
     }
 
-
-
-/*
-    static void on_dialog_(HWND hwnd,WPARAM wparam,LPARAM lparam) {}
-*/
-    // end of "on_dialog" functions
-
-    static INT_PTR CALLBACK dialog_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-        dialog_message_map.ProcessMessage(hwnd, message, wParam, lParam);
+    static void init_dialog(HWND hwnd, LPCTSTR name = consts::title) {
+        SetWindowLong(hwnd, GWL_STYLE, DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU);
+        SetWindowPos(hwnd, nullptr, 0, 0, 500, 250, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        SetWindowText(hwnd, name);
     }
 
-    ////////////////////////////////////////////////  the end  /////////////////////////////////////////////////////////
+    static INT_PTR CALLBACK about_dialog_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+        switch (message) {
+            case WM_INITDIALOG: {
+                init_dialog(hwnd, L"Справка");
+                break;
+            }
+            case WM_PAINT: {
+                PAINTSTRUCT ps;
+                auto hdc = DoubleBuffering(hwnd);
+                auto rect = GetClientRect(hwnd);
+                SetBkMode(hdc, TRANSPARENT);
+                DrawText(hdc,
+                         L"Диаграмы строятся на основе файла \"Data.txt\", или на основе выбранного файла в меню \"Открыть\", можно настроить цвет в меню \"Настройки\"\n\nАвтор: Ковалевский Сергей",
+                         -1, &rect,
+                         DT_CENTER | DT_WORDBREAK);
+
+                break;
+            }
+            case WM_CLOSE:
+                DestroyWindow(hwnd);
+                break;
+            case WM_DESTROY:
+                PostQuitMessage(0);
+                break;
+            default:
+                return 0;
+        }
+        return 1;
+    }
+
+    static INT_PTR CALLBACK settings_dialog_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+        switch (message) {
+            case WM_INITDIALOG: {
+                InitialiseDialogAndControlls(hinst, hwnd).init_dialog()
+                        .CreateComboBox({150, 50}, id_dialog_list, 200, 200)
+                        .CreatePushButton({400, 200}, id_dialog_ok, 80, 20, 0, L"Ok")
+                        .CreatePushButton({200, 100}, id_dialog_select, 100, 20, 0, L"Выбрать");
+
+                for (const auto &i:participants) {
+                    SendMessage(GetDlgItem(hwnd, id_dialog_list), CB_ADDSTRING, 0, (LPARAM) i.surname.c_str());
+                }
+
+                ComboBox_SetCurSel(GetDlgItem(hwnd, id_dialog_list), 0);
+                break;
+            }
+            case WM_COMMAND:
+                static COLORREF dColors[16] = {0};
+                static COLORREF buf_color = 0;
+                if (LOWORD(wParam) == id_dialog_select) {
+                    CHOOSECOLOR cc;
+                    cc.Flags = CC_RGBINIT | CC_FULLOPEN;
+                    cc.hInstance = nullptr;
+                    cc.hwndOwner = hwnd;
+                    cc.lCustData = 0L;
+                    cc.lpCustColors = dColors;
+                    cc.lpfnHook = nullptr;
+                    cc.lpTemplateName = (LPTSTR) nullptr;
+                    cc.lStructSize = sizeof(cc);
+                    cc.rgbResult = buf_color;
+
+                    if (ChooseColor(&cc)) {
+                        participants[ComboBox_GetCurSel(GetDlgItem(hwnd, id_dialog_list))].color = cc.rgbResult;
+                        InvalidateRect(_hwnd, nullptr, false);
+                    }
+
+                } else if (LOWORD(wParam) == id_dialog_ok) {
+                    DestroyWindow(hwnd);
+                }
+                break;
+
+            case WM_CLOSE:
+                DestroyWindow(hwnd);
+                break;
+            case WM_DESTROY:
+                PostQuitMessage(0);
+                break;
+            default:
+                return 0;
+        }
+        return 1;
+    }
+
 };
 
-MessageMap Program::message_map;
-DialogMessageMap Program::dialog_message_map;
+WinApi::MessageMap Program::message_map;
 HINSTANCE Program::hinst;
-MenuClass Program::menu_class;
-HWND Program::_hdialog;
-Program::Ball Program::ball;
-bool Program::pause = false;
-bool Program::need_to_change_color_to_yellow = true;
+char Program::file[500] = "Data.txt";
+std::vector<Program::Participant> Program::participants;
+HWND Program::_hwnd;
 
-bool Program::check_pause(HDC hdc, RECT rect) {
-    if (pause) {
-        DrawText(hdc, L"Пауза", -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
-        return true;
+void Program::refresh_data(HWND hwnd) {
+    setlocale(LC_ALL, "rus");
+    participants.clear();
+    std::wifstream fin(file);
+    int sum = 0;
+    while (true) {
+        Participant participant;
+        fin >> participant.surname >> participant.score_in_percent;
+        if (!fin)
+            break;
+        sum += participant.score_in_percent;
+        participant.color = GetRandColor();
+        participants.push_back(participant);
     }
-    return false;
-}
-
-bool Program::point_in_round(Vector<int> point, Vector<int> round_center, int radius) {
-    return (point - round_center).length() < radius;
+    if (participants.empty() || abs(sum - 100.0) > consts::epselon) {
+        MessageBox(hwnd, L"Invalid file", L"Error", MB_OK | MB_ICONERROR);
+        DestroyWindow(hwnd);
+    }
+    InvalidateRect(hwnd, nullptr, false);
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {

@@ -54,7 +54,7 @@ namespace WinApi {
     }
 
     int random(int a, int b) {
-        std::mt19937 gen(static_cast<unsigned int>(time(0)));
+        static std::mt19937 gen(static_cast<unsigned int>(time(nullptr)));
         std::uniform_int_distribution<> uid(a, b);
         return uid(gen);
     }

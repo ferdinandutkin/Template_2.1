@@ -15,7 +15,7 @@ public:
 
     explicit Vector(T x = 0, T y = 0);
 
-    Vector(const std::pair<T, T> p);
+    explicit Vector(std::pair<T, T> p);
 
     const long double length() const;
 
@@ -27,19 +27,24 @@ public:
 
     const Vector<T> operator+(T a) const;
 
-    friend const Vector<T> operator+(T a, const Vector<T> &v);
+    template<typename T1>
+    friend const Vector<T1> operator+(T1 a, const Vector<T1> &v);
 
     const Vector<T> operator*(T a) const;
 
-    friend const Vector<T> operator*(T a, const Vector<T> &v);
+    template<typename T1>
+    friend const Vector<T1> operator*(T1 a, const Vector<T1> &v);
 
     const Vector<T> operator*(const Vector<T> &v);
 
-    operator const std::pair<T, T>() const;
+    explicit operator const std::pair<T, T>() const;
 
-    operator POINT() const;
+    explicit operator POINT() const;
 
-    const Vector<T> operator-(const Vector<T> v) const;
+    const Vector<T> operator-(Vector<T> v) const;
+
+    const Vector<T> operator-(int a) const;
+
 
 };
 
@@ -105,6 +110,11 @@ Vector<T>::operator POINT() const {
 template<typename T>
 const Vector<T> Vector<T>::operator-(const Vector<T> v) const {
     return (operator+(v * -1));
+}
+
+template<typename T>
+const Vector<T> Vector<T>::operator-(const int a) const {
+    return operator+(a * -1);
 }
 
 #endif //UNTITLED7_VECTOR_H
