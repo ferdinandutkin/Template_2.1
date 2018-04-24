@@ -3,6 +3,7 @@
 //
 
 #include <random>
+#include <ctime>
 #include "WinApiFunctions.h"
 
 namespace WinApi {
@@ -49,7 +50,12 @@ namespace WinApi {
     }
 
     COLORREF GetRandColor() {
-        std::linear_congruential_engine<unsigned char, 123, 456, 256> rand;
-        return RGB(rand() % 256, rand() % 256, rand() % 256);
+        return RGB(random(0, 255), random(0, 255), random(0, 255));
+    }
+
+    int random(int a, int b) {
+        std::mt19937 gen(static_cast<unsigned int>(time(0)));
+        std::uniform_int_distribution<> uid(a, b);
+        return uid(gen);
     }
 }

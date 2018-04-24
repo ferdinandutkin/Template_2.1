@@ -13,6 +13,8 @@ namespace WinApi {
 
     RECT rect_to_screen(HWND hwnd, RECT rect);
 
+    int random(int a = 0, int b = INT_MAX);
+
     COLORREF GetRandColor();
 
     void ReleaseOldObj(HDC hdc, HGDIOBJ obj);
@@ -24,7 +26,6 @@ namespace WinApi {
     int GetRectWidth(RECT rect);
 
     int GetRectHeigth(RECT rect);
-
 }
 
 #endif //UNTITLED7_WINAPIFUNCTIONS_H
