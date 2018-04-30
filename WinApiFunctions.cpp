@@ -17,7 +17,7 @@ namespace WinApi {
 
 
     void ClearBackgroud(HDC deviceContext, RECT clientRect) {
-        auto backgroudBrush = GetSysColorBrush(COLOR_WINDOW); // CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+        auto backgroudBrush = CreateSolidBrush(GetSysColor(CTLCOLOR_DLG));
         FillRect(deviceContext, &clientRect, backgroudBrush);
         DeleteObject(backgroudBrush);
     }

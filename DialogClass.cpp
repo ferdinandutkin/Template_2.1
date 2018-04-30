@@ -25,8 +25,10 @@ namespace WinApi {
     InitialiseDialogAndControlls &
     InitialiseDialogAndControlls::CreateControl(const wchar_t *className, unsigned long style, int x, int y, int width,
                                                 int height, int id, LPCWSTR name) {
-        CreateWindow(className, name, WS_CHILD | WS_VISIBLE | style, x, y, width, height, _hdialog, (HMENU) id, hinst,
-                     nullptr);
+        controls.push_back(
+                CreateWindow(className, name, WS_CHILD | WS_VISIBLE | style, x, y, width, height, _hdialog, (HMENU) id,
+                             hinst,
+                             nullptr));
         return *this;
     }
 

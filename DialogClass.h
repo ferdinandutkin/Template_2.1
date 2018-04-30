@@ -45,6 +45,7 @@ namespace WinApi {
     class InitialiseDialogAndControlls {
         HWND _hdialog;
         HINSTANCE hinst;
+        std::vector<HWND> controls;
     public:
         const static unsigned long default_dialog_style;
 
@@ -53,6 +54,13 @@ namespace WinApi {
         InitialiseDialogAndControlls &
         CreateControl(const wchar_t *className, unsigned long style, int x, int y, int width, int height, int id,
                       LPCWSTR name = L"");    //!style|WS_VISIBLE|WS_CHILD
+
+        void DeleteControls() {
+            while (!controls.empty()) {
+                DestroyWindow(controls.back());
+                controls.pop_back();
+            }
+        }
 
 //!     prefix: E
         InitialiseDialogAndControlls &
@@ -87,7 +95,7 @@ namespace WinApi {
         }
 
         InitialiseDialogAndControlls &
-        init_dialog(POINT pos = {0, 0}, int width = 500, int height = 250, const std::wstring &title = L"Dialog",
+        init_dialog(POINT pos = {0, 0}, int width = 500, int height = 400, const std::wstring &title = L"Dialog",
                     unsigned long style = default_dialog_style);
     };
 }
