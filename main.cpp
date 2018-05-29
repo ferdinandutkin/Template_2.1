@@ -39,6 +39,10 @@ protected:
     void read_answers(std::wistream &fin) {
         unsigned int amount_of_answers;
         fin >> amount_of_answers;
+        if (!fin) {
+            MessageBox(NULL, L"invalid data, please check if the question is correct", L"Error", MB_ICONERROR | MB_OK);
+            exit(0);
+        }
         answers.resize(amount_of_answers);
         for (auto &i:answers) {
             fin >> i;
@@ -48,11 +52,11 @@ protected:
 public:
     explicit Question(InitialiseDialogAndControlls &dlg) : number(cur_number++), dlg(dlg) {}
 
-    virtual void read(std::wistream &fin)=0;
+    virtual void read(std::wistream &fin) = 0;
 
-    virtual void paint(HWND hwnd, HDC hdc)=0;
+    virtual void paint(HWND hwnd, HDC hdc) = 0;
 
-    virtual bool check(HWND hwnd)=0;
+    virtual bool check(HWND hwnd) = 0;
 
     void clear() {
         dlg.DeleteControls();
@@ -70,6 +74,10 @@ public:
         read_answers(fin);
         fin >> correct_answer;
         user_answer.resize(answers.size(), false);
+        if (!fin) {
+            MessageBox(NULL, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
+            exit(0);
+        }
     }
 
     void paint(HWND hwnd, HDC hdc) override {
@@ -124,6 +132,10 @@ public:
             correct_answers[--tmp] = true;
         }
         user_answer.resize(answers.size(), false);
+        if (!fin) {
+            MessageBox(NULL, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
+            exit(0);
+        }
     }
 
     void paint(HWND hwnd, HDC hdc) override {
@@ -239,6 +251,10 @@ private:
             else
                 questions.emplace_back(new AlternativeQuestion(fin, dlg));
             InvalidateRect(hwnd, nullptr, false);
+        }
+        if (questions.empty()) {
+            MessageBox(hwnd, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
+            DestroyWindow(hwnd);
         }
         answers.resize(questions.size(), false);
     }
