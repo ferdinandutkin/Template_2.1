@@ -1,4 +1,11 @@
 #define UNICODE
+// format of Questions.txt:
+// type(0 for alternative, 1 for multichoise)
+// title
+// amount of answers
+// strings(one string for each answer)
+// number of correct answer for alternative/amount of correct answers for multychoise
+// numbers of correct answers for multychoise
 
 #include <windows.h>
 #include <vector>
@@ -74,7 +81,7 @@ public:
         read_answers(fin);
         fin >> correct_answer;
         user_answer.resize(answers.size(), false);
-        if (!fin) {
+        if (!fin || correct_answer > answers.size()) {
             MessageBox(NULL, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
             exit(0);
         }
@@ -125,15 +132,24 @@ public:
         read_answers(fin);
         unsigned int amount_of_correct_answers;
         fin >> amount_of_correct_answers;
+        if (amount_of_correct_answers > answers.size()) {
+            MessageBox(NULL, L"Error", L"invalid file", MB_ICONERROR | MB_OK);
+            exit(0);
+        }
         correct_answers.resize(answers.size());
         for (int i = 0; i < amount_of_correct_answers; i++) {
             int tmp;
             fin >> tmp;
+            if (tmp > correct_answers.size()) {
+                MessageBox(NULL, L"Error", L"invalid file", MB_ICONERROR | MB_OK);
+                exit(0);
+            }
+
             correct_answers[--tmp] = true;
         }
         user_answer.resize(answers.size(), false);
         if (!fin) {
-            MessageBox(NULL, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
+            MessageBox(NULL, L"Error", L"invalid file", MB_ICONERROR | MB_OK);
             exit(0);
         }
     }
