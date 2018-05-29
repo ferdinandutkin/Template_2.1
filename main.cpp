@@ -43,15 +43,93 @@ class Program {
     static WinApi::DialogMessageMap dlg_message_map;
     static HINSTANCE hinst;
     static bool need_to_move;
-    static double accel;
-    static COLORREF color;
-    static double speed;
     static HMENU menu, object_menu;
     static HWND _hDialog;
-    static int R;
     static COLORREF buf_color;
     static std::vector<COLORREF> custom_colors;
 
+    static class Ball {
+        const int rotate_speed;
+        int direction;
+        double speed;
+        double accel;
+        int prev_x, prev_angle;
+        COLORREF color;
+    public:
+        double getSpeed() const {
+            return speed;
+        }
+
+        void setSpeed(double speed) {
+            Ball::speed = speed;
+        }
+
+        double getAccel() const {
+            return accel;
+        }
+
+        void setAccel(double accel) {
+            Ball::accel = accel;
+        }
+
+        COLORREF getColor() const {
+            return color;
+        }
+
+        void setColor(COLORREF color) {
+            Ball::color = color;
+        }
+
+        int getR() const {
+            return R;
+        }
+
+        void setR(int R) {
+            Ball::R = R;
+        }
+
+    private:
+        int R;
+
+    public:
+        Ball() : rotate_speed(3), speed(consts::beg_speed), accel(0.01),
+                 color(RGB(rand() % 256, rand() % 256, rand() % 256)), R(consts::R),
+                 prev_x(static_cast<int>(consts::R - speed)), prev_angle(0) {}
+
+        void move(HWND hwnd, HDC hdc) {
+            HBRUSH brush = CreateSolidBrush(color);
+            RECT united_rect, client_rect = GetClientRect(hwnd);
+            int cur_x = static_cast<int>(prev_x + speed), cur_y = f(cur_x) + client_rect.bottom / 2;
+            auto ellipse_rect = SetRect(cur_x - R, cur_y - R, cur_x + R, cur_y + R);
+            UnionRect(&united_rect, &ellipse_rect, &client_rect);
+            if (!EqualRect(&client_rect, &united_rect)) {
+
+                speed *= -1;
+                color = RGB(rand() % 256, rand() % 256, rand() % 256);
+                return;
+            }
+
+
+            FillRect(hdc, &client_rect, (HBRUSH) WHITE_BRUSH);
+            auto old_brush = (HBRUSH) SelectObject(hdc, brush);
+
+            Ellipse(hdc, ellipse_rect.left, ellipse_rect.top, ellipse_rect.right, ellipse_rect.bottom);
+            MoveToEx(hdc, cur_x, cur_y, nullptr);
+            int cur_angle = (prev_angle + rotate_speed) % 360;
+            POINT R_pick_pos_after_rotating = MakePoint(cur_x + R * cos(cur_angle * M_PI / 180),
+                                                        cur_y + R * sin(cur_angle * M_PI / 180));
+            LineTo(hdc, R_pick_pos_after_rotating.x, R_pick_pos_after_rotating.y);
+
+            DeleteObject(SelectObject(hdc, old_brush));
+
+
+            prev_angle = cur_angle;
+            prev_x = cur_x;
+            speed += (speed ? speed / abs(speed) : 1) * accel;
+        }
+
+
+    } ball;
     static void init_message_map() {
         message_map.AddHandler(WM_PAINT, on_paint)
                 .AddHandler(WM_DESTROY, on_destroy)
@@ -133,55 +211,23 @@ private:
 
     static POINT MakePoint(double x, double y);
 
+
     static LRESULT on_paint(HWND hwnd, WPARAM wparam, LPARAM lparam) {
         if (!need_to_move)
             return 0;
-
-        static int direction = 1;
-        const static int rotate_speed = 3;
-        static int prev_x = static_cast<int>(consts::R - speed), prev_angle = 0;
-        HBRUSH brush = CreateSolidBrush(color);
-        RECT united_rect, client_rect = GetClientRect(hwnd);
-        int cur_x = static_cast<int>(prev_x + speed), cur_y = f(cur_x) + client_rect.bottom / 2;
-        auto ellipse_rect = SetRect(cur_x - R, cur_y - R, cur_x + R, cur_y + R);
-        UnionRect(&united_rect, &ellipse_rect, &client_rect);
-        if (!EqualRect(&client_rect, &united_rect)) {
-            direction *= -1;
-//            speed=consts::beg_speed;
-            speed *= direction;
-//            DeleteObject(brush);
-
-            color = RGB(rand() % 256, rand() % 256, rand() % 256);
-
-//            brush = CreateSolidBrush(color);
-//            prev_x = cur_x;
-            return 0;
-        }
+        auto client_rect = GetClientRect(hwnd);
         PAINTSTRUCT ps;
         auto old_hdc = BeginPaint(hwnd, &ps);
         auto hdc = CreateCompatibleDC(ps.hdc);
         auto old_bitmap = SelectBufferBitmap(ps.hdc, hdc, client_rect);
 
-        FillRect(hdc, &client_rect, WHITE_BRUSH);
-        auto old_brush = (HBRUSH) SelectObject(hdc, brush);
-
-        Ellipse(hdc, ellipse_rect.left, ellipse_rect.top, ellipse_rect.right, ellipse_rect.bottom);
-        MoveToEx(hdc, cur_x, cur_y, nullptr);
-        int cur_angle = (prev_angle + rotate_speed) % 360;
-        POINT R_pick_pos_after_rotating = MakePoint(cur_x + R * cos(cur_angle * M_PI / 180),
-                                                    cur_y + R * sin(cur_angle * M_PI / 180));
-        LineTo(hdc, R_pick_pos_after_rotating.x, R_pick_pos_after_rotating.y);
-
-        DeleteObject(SelectObject(hdc, old_brush));
+        ball.move(hwnd, hdc);
 
         CopyContextBits(ps.hdc, hdc, client_rect);
         ReleaseOldObj(hdc, old_bitmap);
         ReleaseDC(hwnd, old_hdc);
         EndPaint(hwnd, &ps);
-
-        prev_angle = cur_angle;
-        prev_x = cur_x;
-        speed += (speed ? speed / abs(speed) : 1) * accel;
+        auto a = GetLastError();
         return 0;
     }
 
@@ -275,21 +321,21 @@ private:
         CreateControl(WC_STATIC, SS_CENTER, 5, 5, 100, 20, 0, L"Высота:");
         std::wstring str;
         std::wstringstream ss;
-        ss << R * 2;
+        ss << ball.getR() * 2;
         ss >> str;
         CreateEditBox(120, 5, id_height, 100, 20, ES_NUMBER, str.c_str());
 
         CreateControl(WC_STATIC, SS_CENTER, 5, 35, 100, 20, 0, L"Скорость:");
         str.clear();
         std::wstringstream ss1;
-        ss1 << speed;
+        ss1 << ball.getSpeed();
         ss1 >> str;
         CreateEditBox(120, 35, id_speed, 100, 20, 0, str.c_str());
 
         CreateControl(WC_STATIC, SS_CENTER, 5, 65, 100, 20, 0, L"Ускорение:");
         str.clear();
         std::wstringstream ss2;
-        ss2 << accel;
+        ss2 << ball.getAccel();
         ss2 >> str;
         CreateEditBox(120, 65, id_accel, 100, 20, 0, str.c_str());
 
@@ -299,7 +345,7 @@ private:
         CreateControl(WC_BUTTON, BS_PUSHBUTTON | BS_CENTER | WS_BORDER, 300, 200, 50, 20, id_ok, L"Ok");
         CreateControl(WC_BUTTON, BS_PUSHBUTTON | BS_CENTER | WS_BORDER, 400, 200, 50, 20, id_cancel, L"Cancel");
 
-        buf_color = color;
+        buf_color = ball.getColor();
     }
 
     static void on_close(HWND hwnd, WPARAM wparam, LPARAM lparam) {
@@ -336,22 +382,25 @@ private:
         Edit_GetText(GetDlgItem(hwnd, id_height), str, 100);
         std::wstringstream ss;
         ss << str;
+        int R;
         ss >> R;
         R /= 2;
-
+        ball.setR(R);
         Edit_GetText(GetDlgItem(hwnd, id_speed), str, 100);
         ss.clear();
         ss << str;
+        double speed;
         ss >> speed;
-
+        ball.setSpeed(speed);
 
         Edit_GetText(GetDlgItem(hwnd, id_accel), str, 100);
         ss.clear();
         ss << str;
+        double accel;
         ss >> accel;
+        ball.setAccel(accel);
 
-
-        color = buf_color;
+        ball.setColor(buf_color);
 
         DestroyWindow(hwnd);
     }
@@ -486,16 +535,12 @@ private:
 WinApi::MessageMap Program::message_map;
 HINSTANCE Program::hinst;
 bool Program::need_to_move = true;
-double Program::accel = 0.01;
-COLORREF Program::color = RGB(rand() % 256, rand() % 256, rand() % 256);
-double Program::speed = consts::beg_speed;
 HMENU Program::menu, Program::object_menu;
 WinApi::DialogMessageMap Program::dlg_message_map;
 HWND Program::_hDialog;
-int Program::R = consts::R;
 COLORREF Program::buf_color;
 std::vector<COLORREF> Program::custom_colors(10);
-
+Program::Ball Program::ball;
 
 POINT Program::MakePoint(double x, double y) {
     POINT pt = {static_cast<LONG>(x), static_cast<LONG>(y)};
