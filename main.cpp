@@ -33,6 +33,26 @@ enum IDS {
 
 using namespace WinApi;
 
+class User_answer {
+    std::vector<bool> user_answer;
+public:
+    void set_answer(std::vector<bool> &v) {
+        user_answer = v;
+    }
+
+    void print(std::ostream &out) {
+        for (int i = 0; i < user_answer.size(); i++)
+            if (user_answer[i]) {
+                out << i << ", ";
+            }
+        out<<'\n';
+    }
+    bool operator[](int i){
+        if(user_answer.size()<=i)
+            return false;
+        return user_answer[i];
+    }
+};
 
 class Question {
 protected:
@@ -41,7 +61,7 @@ protected:
     std::wstring title;
     std::vector<std::wstring> answers;
     InitialiseDialogAndControlls &dlg;
-    std::vector<bool> user_answer;
+
 
     void read_answers(std::wistream &fin) {
         unsigned int amount_of_answers;
@@ -61,9 +81,9 @@ public:
 
     virtual void read(std::wistream &fin) = 0;
 
-    virtual void paint(HWND hwnd, HDC hdc) = 0;
+    virtual void paint(HWND hwnd, HDC hdc,User_answer& user_answer) = 0;
 
-    virtual bool check(HWND hwnd) = 0;
+    virtual bool check(HWND hwnd,User_answer&) = 0;
 
     void clear() {
         dlg.DeleteControls();
@@ -80,22 +100,23 @@ public:
         std::getline(fin, title);
         read_answers(fin);
         fin >> correct_answer;
-        user_answer.resize(answers.size(), false);
         if (!fin || correct_answer > answers.size()) {
             MessageBox(NULL, L"Error", L"empty or invalid file", MB_ICONERROR | MB_OK);
             exit(0);
         }
     }
 
-    void paint(HWND hwnd, HDC hdc) override {
+    void paint(HWND hwnd, HDC hdc, User_answer& user_answer) override {
         auto rect = GetClientRect(hwnd);
         rect.top += 20;
         rect.right -= 40;
         rect.bottom -= 20 + 5 * 20 + 5 * 10;
         rect.left += 20;
         RECT text_rect = rect;
-        DrawText(hdc, title.c_str(), -1, &text_rect, DT_CENTER | DT_CALCRECT | DT_WORDBREAK);
-        DrawText(hdc, title.c_str(), -1, &rect, DT_CENTER | DT_WORDBREAK);
+        auto _title=std::to_wstring(number)+L") "+title;
+
+        DrawText(hdc, _title.c_str(), -1, &text_rect, DT_CENTER | DT_CALCRECT | DT_WORDBREAK);
+        DrawText(hdc, _title.c_str(), -1, &rect, DT_CENTER | DT_WORDBREAK);
         rect.top += GetRectHeigth(text_rect) + 20;
         dlg.DeleteControls();
         auto cur_top_pos = rect.top;
@@ -110,11 +131,13 @@ public:
         dlg.CreatePushButton({rect.right - 100, cur_top_pos}, id_next_button, 100, 20, 0, L"Вперед");
     }
 
-    bool check(HWND hwnd) override {
-        user_answer.resize(answers.size(), false);
+    bool check(HWND hwnd,User_answer& user_answer) override {
+        std::vector<bool> _user_answer;
+        _user_answer.resize(answers.size(), false);
         for (int i = 0; i < answers.size(); i++) {
-            user_answer[i] = SendMessage(GetDlgItem(hwnd, 1000 + i), BM_GETCHECK, 0, 0);
+            _user_answer[i] = SendMessage(GetDlgItem(hwnd, 1000 + i), BM_GETCHECK, 0, 0);
         }
+        user_answer.set_answer(_user_answer);
         return (bool) SendMessage(GetDlgItem(hwnd, 999 + correct_answer), BM_GETCHECK, 0, 0);
     }
 
@@ -147,22 +170,22 @@ public:
 
             correct_answers[--tmp] = true;
         }
-        user_answer.resize(answers.size(), false);
         if (!fin) {
             MessageBox(NULL, L"Error", L"invalid file", MB_ICONERROR | MB_OK);
             exit(0);
         }
     }
 
-    void paint(HWND hwnd, HDC hdc) override {
+    void paint(HWND hwnd, HDC hdc,User_answer& user_answer) override {
         auto rect = GetClientRect(hwnd);
         rect.top += 20;
         rect.right -= 40;
         rect.bottom -= 20 + 5 * 20 + 5 * 10;
         rect.left += 20;
         RECT text_rect = rect;
-        DrawText(hdc, title.c_str(), -1, &text_rect, DT_CENTER | DT_CALCRECT | DT_WORDBREAK);
-        DrawText(hdc, title.c_str(), -1, &rect, DT_CENTER | DT_WORDBREAK);
+        auto _title=std::to_wstring(number)+L") "+title;
+        DrawText(hdc, _title.c_str(), -1, &text_rect, DT_CENTER | DT_CALCRECT | DT_WORDBREAK);
+        DrawText(hdc, _title.c_str(), -1, &rect, DT_CENTER | DT_WORDBREAK);
         rect.top += GetRectHeigth(text_rect) + 20;
         dlg.DeleteControls();
         auto cur_top_pos = rect.top;
@@ -176,13 +199,12 @@ public:
         dlg.CreatePushButton({rect.right - 100, cur_top_pos}, id_next_button, 100, 20, 0, L"Вперед");
     }
 
-    bool check(HWND hwnd) override {
+    bool check(HWND hwnd,User_answer& _user_answer) override {
+        std::vector<bool> user_answer(answers.size());
         for (int i = 0; i < answers.size(); i++) {
             user_answer[i] = SendMessage(GetDlgItem(hwnd, 1000 + i), BM_GETCHECK, 0, 0);
         }
-        for (auto i:correct_answers)
-            if (!SendMessage(GetDlgItem(hwnd, i + 1000), BM_GETCHECK, 0, 0))
-                return false;
+        _user_answer.set_answer(user_answer);
         for (int i = 0; i < answers.size(); i++)
             if (SendMessage(GetDlgItem(hwnd, i + 1000), BM_GETCHECK, 0, 0) ^ correct_answers[i])
                 return false;
@@ -200,7 +222,7 @@ class Program {
     static int question_number;
     static std::vector<Question *> questions;
     static std::vector<bool> answers;
-
+    static std::vector<User_answer> user_answers;
 
     static void init_message_map() {
         message_map.AddHandler(WM_PAINT, on_paint)
@@ -250,7 +272,7 @@ private:
         if (question_number >= questions.size())
             paint_last_question(hwnd, hdc);
         else
-            questions[question_number]->paint(hwnd, hdc), last_question_number = question_number;
+            questions[question_number]->paint(hwnd, hdc,user_answers[question_number]), last_question_number = question_number;
     }
 
 
@@ -273,10 +295,11 @@ private:
             DestroyWindow(hwnd);
         }
         answers.resize(questions.size(), false);
+        user_answers.resize(questions.size());
     }
 
     static void check(HWND hwnd) {
-        answers[question_number] = questions[question_number]->check(hwnd);
+        answers[question_number] = questions[question_number]->check(hwnd,user_answers[question_number]);
     }
 
     static void ch_next(HWND hwnd, WPARAM wparam, LPARAM lparam) {
@@ -316,7 +339,7 @@ HINSTANCE Program::hinst;
 std::vector<Question *> Program::questions;
 
 std::vector<bool> Program::answers;
-
+std::vector<User_answer> Program::user_answers;
 int Program::question_number = 0;
 
 void Program::paint_last_question(HWND hwnd, HDC hdc) {
